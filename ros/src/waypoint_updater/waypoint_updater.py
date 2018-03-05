@@ -91,20 +91,22 @@ class WaypointUpdater(object):
         rospy.loginfo("waypoint_updater:send_waypoints start_wps_ptr = %d, end_wps_ptr = %d",
                       start_wps_ptr, end_wps_ptr)
         if end_wps_ptr > start_wps_ptr:
-            for w_p in self.waypoints[start_wps_ptr::end_wps_ptr]:
+            for w_p in self.waypoints[start_wps_ptr:end_wps_ptr]:
                 w_p.twist.twist.linear.x = DEFAULT_VELOCITY #
                 new_wps_list.append(w_p)
             # end of for
         else:
-            for w_p in self.waypoints[start_wps_ptr::]:
+            for w_p in self.waypoints[start_wps_ptr:]:
                 w_p.twist.twist.linear.x = DEFAULT_VELOCITY #
                 new_wps_list.append(w_p)
             # end of for                
-            for w_p in self.waypoints[::end_wps_ptr]:
+            for w_p in self.waypoints[:end_wps_ptr]:
                 w_p.twist.twist.linear.x = DEFAULT_VELOCITY #
                 new_wps_list.append(w_p)
             # end of for
         # end of if 
+        rospy.loginfo("waypoint_updater:send_waypoints final_waypoints list length is %d",
+            len(new_wps_list))
         lane = Lane()
         lane.waypoints = list(new_wps_list)
         lane.header.frame_id = '/world'

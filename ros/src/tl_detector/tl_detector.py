@@ -21,17 +21,17 @@ class TLDetector(object):
     def __init__(self):
         rospy.init_node('tl_detector')
 
-	#Variable Definitions
+        #Variable Definitions
         self.pose = None
         self.waypoints = None
         self.camera_image = None
         self.lights = []
 
-        # tl_detection node subscribes to:
-    	#/base_waypoints provides the complete list of waypoints for the course.
-	#/current_pose can be used used to determine the vehicle's location.
-	#/image_color which provides an image stream from the car's camera. These images are used to determine the color of upcoming traffic lights.
-	#/vehicle/traffic_lights provides the (x, y, z) coordinates of all traffic lights.
+        #tl_detection node subscribes to:
+        #/base_waypoints provides the complete list of waypoints for the course.
+        #/current_pose can be used used to determine the vehicle's location.
+        #/image_color which provides an image stream from the car's camera. These images are used to determine the color of upcoming traffic lights.
+        #/vehicle/traffic_lights provides the (x, y, z) coordinates of all traffic lights.
 
         sub1 = rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb)
         sub2 = rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb)
@@ -53,7 +53,7 @@ class TLDetector(object):
 
         self.upcoming_red_light_pub = rospy.Publisher('/traffic_waypoint', Int32, queue_size=1)
 
-		#[Meenu] - Commented the following temporarily 
+        #[Meenu] - Commented the following temporarily 
         #self.bridge = CvBridge()
         #self.light_classifier = TLClassifier()
         #self.listener = tf.TransformListener()
@@ -76,11 +76,11 @@ class TLDetector(object):
         rospy.spin()
 
     def pose_cb(self, msg):
-	"""Callback fuction for vehicle's location."""
+        """Callback fuction for vehicle's location."""
         self.pose = msg
 
     def waypoints_cb(self, waypoints):
-	"""Callback fuction for list of all waypoints."""
+        """Callback fuction for list of all waypoints."""
         self.waypoints = waypoints
         self.stop_line_waypoints = []
         for pts in self.stop_line_positions:
@@ -102,9 +102,9 @@ class TLDetector(object):
         self.has_image = True
         self.camera_image = msg
         if GROUND_TRUTH_PASS:
-			light_wp, state = self.process_ground_truth_lights()
+            light_wp, state = self.process_ground_truth_lights()
         else:        
-			light_wp, state = self.process_traffic_lights()
+            light_wp, state = self.process_traffic_lights()
 
         '''
         Publish upcoming red lights at camera frequency.
@@ -153,7 +153,7 @@ class TLDetector(object):
                 min_dist = dist    # we save the distance of the closest waypoint
 
 
-	# returns the index of the closest waypoint
+        #returns the index of the closest waypoint
         return wp_id
 
 
@@ -192,7 +192,7 @@ class TLDetector(object):
         # List of positions that correspond to the line to stop in front of for a given intersection
         #stop_line_positions = self.config['stop_line_positions']
         if(self.pose):
-        	car_position = self.get_closest_waypoint(self.pose.pose.position.x,self.pose.pose.position.y, self.waypoints) 
+            car_position = self.get_closest_waypoint(self.pose.pose.position.x,self.pose.pose.position.y, self.waypoints) 
 
         #TODO find the closest visible traffic light (if one exists)
 
@@ -219,30 +219,30 @@ class TLDetector(object):
         ntl_state =TrafficLight.UNKNOWN
 
         if(self.pose):
-			car_position = self.get_closest_waypoint(self.pose.pose.position.x,self.pose.pose.position.y, self.waypoints)
+            car_position = self.get_closest_waypoint(self.pose.pose.position.x,self.pose.pose.position.y, self.waypoints)
         if car_position:
-			for tl in self.lights: 	
-				nearest_waypoint = self.get_closest_waypoint(tl.pose.pose.position.x,tl.pose.pose.position.y, self.waypoints)
-				if nearest_waypoint > car_position:
-					ntl_wp = nearest_waypoint
-					ntl_state = tl.state
-					break
+            for tl in self.lights: 	
+                nearest_waypoint = self.get_closest_waypoint(tl.pose.pose.position.x,tl.pose.pose.position.y, self.waypoints)
+                if nearest_waypoint > car_position:
+                    ntl_wp = nearest_waypoint
+                    ntl_state = tl.state
+                    break
         stop_line = -1 
         if ntl_wp > 0:
-			#stop line nearest to the nearest light
-			stop_distance = 10000
-			for position in self.stop_line_waypoints:
-				if position < ntl_wp:
-					if ((ntl_wp - position) < stop_distance):
-						stop_distance = (ntl_wp - position)	
-						stop_line = position
+        #stop line nearest to the nearest light
+            stop_distance = 10000
+            for position in self.stop_line_waypoints:
+                if position < ntl_wp:
+                    if ((ntl_wp - position) < stop_distance):
+                        stop_distance = (ntl_wp - position)	
+                        stop_line = position
         if stop_line > 0:
-			rospy.loginfo('Light state: %s',ntl_state)
-			rospy.loginfo('Stop line: %f',stop_line)			
-			return stop_line, ntl_state 
+            rospy.loginfo('Light state: %s',ntl_state)
+            rospy.loginfo('Stop line: %f',stop_line)			
+            return stop_line, ntl_state 
         else:
-	        rospy.loginfo('Light state: %s',TrafficLight.UNKNOWN)
-	        return -1, TrafficLight.UNKNOWN
+            rospy.loginfo('Light state: %s',TrafficLight.UNKNOWN)
+            return -1, TrafficLight.UNKNOWN
 
 if __name__ == '__main__':
     try:

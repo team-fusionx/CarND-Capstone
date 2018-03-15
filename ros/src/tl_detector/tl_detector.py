@@ -21,11 +21,7 @@ class TLDetector(object):
     def __init__(self):
         rospy.init_node('tl_detector')
 
-		#Private Parameter to differentiate simulation or Site Launch  
-		#Default - site launch
-        self.isSimulation = bool(rospy.get_param('~isSimulation', False))
-	
-		#Variable Definitions
+	#Variable Definitions
         self.pose = None
         self.waypoints = None
         self.camera_image = None
@@ -33,9 +29,9 @@ class TLDetector(object):
 
         # tl_detection node subscribes to:
     	#/base_waypoints provides the complete list of waypoints for the course.
-		#/current_pose can be used used to determine the vehicle's location.
-		#/image_color which provides an image stream from the car's camera. These images are used to determine the color of upcoming traffic lights.
-		#/vehicle/traffic_lights provides the (x, y, z) coordinates of all traffic lights.
+	#/current_pose can be used used to determine the vehicle's location.
+	#/image_color which provides an image stream from the car's camera. These images are used to determine the color of upcoming traffic lights.
+	#/vehicle/traffic_lights provides the (x, y, z) coordinates of all traffic lights.
 
         sub1 = rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb)
         sub2 = rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb)
@@ -129,7 +125,7 @@ class TLDetector(object):
         self.state_count += 1
 
 
-    def get_closest_waypoint(self, pos_x, pos_y, waypoints):
+    def get_closest_waypoint(self, x, y, waypoints):
         """Identifies the closest path waypoint to the given position
             https://en.wikipedia.org/wiki/Closest_pair_of_points_problem
         Args:
@@ -142,9 +138,6 @@ class TLDetector(object):
         wp_id = None
         wps = waypoints.waypoints
 
-        x = pos_x
-        y = pos_y
-
         wpx = wps[0].pose.pose.position.x
         wpy = wps[0].pose.pose.position.y
 
@@ -156,11 +149,11 @@ class TLDetector(object):
             wps_y = waypoint.pose.pose.position.y
             dist = math.sqrt((x - wps_x)**2 + (y - wps_y)**2)
             if (dist < min_dist): #we found a closer wp
-                wp_id = i     # we store the index of the closest waypoint
-                min_dist = dist     # we save the distance of the closest waypoint
+                wp_id = i         # we store the index of the closest waypoint
+                min_dist = dist    # we save the distance of the closest waypoint
 
-		# returns the index of the closest waypoint
 
+	# returns the index of the closest waypoint
         return wp_id
 
 
@@ -199,7 +192,7 @@ class TLDetector(object):
         # List of positions that correspond to the line to stop in front of for a given intersection
         #stop_line_positions = self.config['stop_line_positions']
         if(self.pose):
-        	car_position = self.get_closest_waypoint(self.pose.pose)
+        	car_position = self.get_closest_waypoint(self.pose.pose.position.x,self.pose.pose.position.y, self.waypoints) 
 
         #TODO find the closest visible traffic light (if one exists)
 

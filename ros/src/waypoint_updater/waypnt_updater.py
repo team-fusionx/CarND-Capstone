@@ -56,7 +56,7 @@ class WaypointUpdater(object):
         self.back_search = False
         self.last_search_distance = None
         self.last_search_time = None
-        self.next_tl_wp = None
+        self.next_tl_wp = -1  # set to -1 None
         self.dyn_tl_buffer = 5.0  # tunable distance to stop before tl wp
         self.dyn_jmt_time_factor = 1.0  # tunable factor to make nicer s curve
         self.update_rate = 10
@@ -176,7 +176,9 @@ class WaypointUpdater(object):
             self.lookahead_wps = config['dyn_lookahead_wps']
         # end if
 
-        if old_test_stoplight_wp != config['dyn_test_stoplight_wp']:
+        if old_test_stoplight_wp != config['dyn_test_stoplight_wp']\
+                and\
+                config['dyn_test_stoplight_wp'] != -1:
             rospy.logwarn("waypoint_updater:dyn_vars_cb Adjusting next "
                           "stoplight from {} to {}"
                           .format(old_test_stoplight_wp,

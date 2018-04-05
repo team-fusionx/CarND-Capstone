@@ -860,15 +860,14 @@ class WaypointUpdater(object):
                 # Todo evaluate if we need to keep going
                 rospy.logdebug("Now within tl_buffer = {:4.3f}"
                               .format(self.dyn_tl_buffer))
-                if self.waypoints[self.final_waypoints_start_ptr].get_v() <=\
-                        self.handoff_velocity: 
+                if self.velocity <= self.handoff_velocity:
                     self.set_stopped(self.final_waypoints_start_ptr, self.
                                  lookahead_wps)
                 else:
                     rospy.logdebug("Within buffer, but not travelling at creeping speed")
                     recalc = self.produce_slowdown(self.final_waypoints_start_ptr,
                         self.lookahead_wps,
-                        dist_to_tl - (self.dyn_tl_buffer - 1.0))
+                        dist_to_tl)
 
             elif dist_to_tl < self.dyn_creep_zone + self.dyn_tl_buffer:
                 if self.waypoints[self.final_waypoints_start_ptr].get_v() <=\
@@ -879,7 +878,7 @@ class WaypointUpdater(object):
                         rospy.logwarn("now start to slowdown")
                     recalc = self.produce_slowdown(self.final_waypoints_start_ptr,
                                                self.lookahead_wps,
-                                               dist_to_tl - (self.dyn_tl_buffer - 1.0))
+                                               dist_to_tl)
             else:
                 # not sure when this might trigger but not match next if statement - then 
                 # reduce car velocity to 0.0 stoping before lights
@@ -889,7 +888,7 @@ class WaypointUpdater(object):
                 if dist_to_tl - self.dyn_tl_buffer > self.min_stop_distance:
                     recalc = self.produce_slowdown(self.final_waypoints_start_ptr,
                                                self.lookahead_wps,
-                                               dist_to_tl - (self.dyn_tl_buffer - 1.0))
+                                               dist_to_tl)
                 else:
                     rospy.logwarn("how did I get here? at ptr = {}".format(self.final_waypoints_start_ptr))
             # end if else

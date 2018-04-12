@@ -65,7 +65,7 @@ def get_accel_time(S, Vi, Vf):
 class WaypointUpdater(object):
     def __init__(self):
         self.testing = False
-        # self.testing = True
+        #self.testing = True
         self.test_counter = 0
         self.dyn_vals_received = False
         self.waypoints = []
@@ -506,17 +506,14 @@ class WaypointUpdater(object):
         # start[s, velocity, acc]
         # end[s, velocity, acc]
 
-        save_start = copy.deepcopy(start)
-        save_end = copy.deepcopy(end)
-
-        if start[1] <= self.min_moving_velocity:
+        if math.fabs(end[1] - start[1]) <= 0.1 and start[2] * end[2] >= 0.0:
             return 0.5
 
         timer_start = rospy.get_time()
 
-        if start[2] > 0.0:
-            # currently speeding up
-            time_factor = 0.8
+        if start[2] > 0.0 and start[1] > end[1]:
+            # currently speeding up while aiming to slow down
+            time_factor = 0.85
         else:
             time_factor = 1.0 # self.dyn_jmt_time_factor
 
@@ -533,102 +530,85 @@ class WaypointUpdater(object):
         save_T = T
         try_reverse = False
         jmt = JMT(start, end, T)
-        jerk = jmt.get_j_at(0.1)
-        e_acc = jmt.get_a_at(T - 0.5)
-        s_acc = jmt.get_a_at(0.5)
+        s_jerk = jmt.get_j_at(0.1)
+        #m_jerk1 = jmt.get_j_at(0.33*T)
+        #m_jerk2 = jmt.get_j_at(0.66*T)
+        e_jerk = jmt.get_j_at(T - 0.1)
+        lsm_jerk = e_jerk*e_jerk + s_jerk*s_jerk # + m_jerk1*m_jerk1 + m_jerk2*mjerk2
+        old_lsm_jerk = lsm_jerk
 
-        rospy.logdebug("found initial jerk of {:3.2f}m/s^3 and start_acc={:3.3f}m/s^2 end_acc={:3.3f}m/s^2"
-                       " using a_dist of {:3.2f}m and time of {:3.2f}s"
-                       .format(jerk, s_acc, e_acc, a_dist, T))
+        rospy.logdebug("for time={:3.3f} found lsm_jerk={:3.4f} initial jerk={:3.4f}m/s^3 end jerk={:3.4f}m/s^3"
+                       " using a_dist of {:3.2f}m"
+                       .format(T, lsm_jerk, s_jerk, e_jerk, a_dist, T))
 
         optimized = False
-        time_diff = T * 0.01
+        time_diff = T * 0.02 # try to cut number of cycles by half
         counter = 0
-        while optimized is False:
-            old_e_acc = e_acc
-            old_s_acc = s_acc
-            if e_acc < end[2] and s_acc < start[2]:
-                optimized = True
-            else:
+        best_T = T
+        try_reverse = False
+        while try_reverse is False and optimized is False:
+            counter = counter + 1
+            T = T + time_diff
+            jmt = JMT(start, end, T)
+            s_jerk = jmt.get_j_at(0.1)
+            e_jerk = jmt.get_j_at(T - 0.1)
+            lsm_jerk = e_jerk*e_jerk + s_jerk*s_jerk
+            if lsm_jerk < old_lsm_jerk:
+                best_T = T
+                old_lsm_jerk = lsm_jerk
+            if lsm_jerk > old_lsm_jerk:
+                if counter > 1:
+                    optimized = True
+                else:
+                    try_reverse = True    
+            if counter > 50 or T < Tmin:
+                rospy.logdebug("counter is {} in get_stopping_time - bail on searching in this direction!"
+                            .format(counter))
+                try_reverse = True
+            rospy.logdebug("for time={:3.3f} found lsm_jerk={:3.4f} s_jerk={:3.4f}m/s^3 e_jerk={:3.4f}m/s^3"
+                " using a_dist={:3.2f}m "
+                .format(T, lsm_jerk, s_jerk, e_jerk, a_dist))
+
+        if try_reverse == True:
+            T = save_T
+            jmt = JMT(start, end, T)
+            time_diff = 0.0 - time_diff
+
+            counter = 0
+            search_done = False
+            while search_done is False and optimized is False:
                 counter = counter + 1
                 T = T + time_diff
                 jmt = JMT(start, end, T)
-                jerk = jmt.get_j_at(0.1)
-                e_acc = jmt.get_a_at(T - 0.5)
-                s_acc = jmt.get_a_at(0.5)
-
-                rospy.logdebug("e_acc={:3.2f}, e_acc-end2={:3.2f}, old_eacc-end2={:3.2f} ,s_acc={:3.2f}, s_acc-start2={:3.2f}, old_sacc-start2={:3.2f}"
-                        .format(e_acc, e_acc-end[2], old_e_acc-end[2], s_acc, s_acc-start[2],old_s_acc-start[2]))
-                if counter == 1 and\
-                        ((e_acc > end[2] and math.fabs(e_acc - end[2]) > math.fabs(old_e_acc - end[2])) or
-                        (s_acc > start[2] and math.fabs(start[2] - s_acc) > math.fabs(start[2] - old_e_acc))):
-                    rospy.loginfo("searching wrong direction - go the other way")
-                    time_diff = 0.0 - time_diff
-
-                if counter > 50 or T < Tmin:
-                    rospy.logwarn("counter is {} in get_stopping_time - bail on searching in this direction!"
-                                .format(counter))
+                s_jerk = jmt.get_j_at(0.1)
+                e_jerk = jmt.get_j_at(T - 0.1)
+                lsm_jerk = e_jerk*e_jerk + s_jerk*s_jerk
+                if lsm_jerk < old_lsm_jerk:
+                    best_T = T
+                    old_lsm_jerk = lsm_jerk
+                if lsm_jerk > old_lsm_jerk:
                     optimized = True
-                    try_reverse = True
-                rospy.logdebug("found initial jerk of {:3.2f}m/s^3 and start_acc={:3.3f}m/s^2 end_acc={:3.3f}m/s^2"
-                       " using a_dist of {:3.2f}m and T={:3.2f}s"
-                       .format(jerk, s_acc, e_acc, a_dist, T))
-
-        if try_reverse == False:
-            duration = rospy.get_time() - timer_start
-            rospy.loginfo("get_stopping_time found shortest distance to decelerate with max_neg_jerk={:3.3f}m/s^3 "
-                            "from v={:3.3f}m/s, a={:3.3f}m/s^2 to v={:3.3f}m/s a={:3.3f}m/s^2 in dist {:3.3f}m"
-                            " in time {:3.3f}s - Took {:3.4f}s to calc."
-                            .format(jerk, start[1], start[2], end[1], end[2],
-                                    a_dist, T, duration))
-            return T
-
-        #########
-        T = save_T
-        start = save_start
-        end = save_end
-        jmt = JMT(start, end, T)
-        jerk = jmt.get_j_at(0.1)
-        e_acc = jmt.get_a_at(T - 0.5)
-        s_acc = jmt.get_a_at(0.5)
-
-        rospy.logdebug("Reverse found initial jerk of {:3.2f}m/s^3 and start_acc={:3.3f}m/s^2 end_acc={:3.3f}m/s^2"
-                       " using a_dist of {:3.2f}m and time of {:3.2f}s"
-                       .format(jerk, s_acc, e_acc, a_dist, T))
-
-        optimized = False
-        time_diff = 0.0 - time_diff
-
-        counter = 0
-        while optimized is False:
-            old_e_acc = e_acc
-            old_s_acc = s_acc
-            if e_acc < end[2] and s_acc < start[2]:
-                optimized = True
-            else:
-                counter = counter + 1
-                T = T + time_diff
-                jmt = JMT(start, end, T)
-                jerk = jmt.get_j_at(0.1)
-                e_acc = jmt.get_a_at(T - 0.5)
-                s_acc = jmt.get_a_at(0.5)
-                rospy.logdebug("e_acc={:3.2f}, e_acc-end2={:3.2f}, old_eacc-end2={:3.2f} ,s_acc={:3.2f}, s_acc-start2={:3.2f}, old_sacc-start2={:3.2f}"
-                        .format(e_acc, e_acc-end[2], old_e_acc-end[2], s_acc, s_acc-start[2],old_s_acc-start[2]))
-
                 if counter > 50 or T < Tmin:
-                    rospy.logwarn("counter is {} in get_stopping_time - bail!"
-                                .format(counter))
-                    optimized = True
-                rospy.logdebug("found initial jerk of {:3.2f}m/s^3 and start_acc={:3.3f}m/s^2 end_acc={:3.3f}m/s^2"
-                       " using a_dist of {:3.2f}m and T={:3.2f}s"
-                       .format(jerk, s_acc, e_acc, a_dist, T))
+                    rospy.logwarn("counter is {} T={:3.3f} in get_stopping_time - bail!"
+                                .format(counter, T, lsm_jerk))
+                    search_done = True
+                rospy.logdebug("for time={:3.4f}s found lsm_jerk={:3.4f} s_jerk={:3.4f}m/s^3 e_jerk={:3.4f}m/s^3"
+                        " using a_dist={:3.2f}m "
+                        .format(T, lsm_jerk, s_jerk, e_jerk, a_dist))
 
         duration = rospy.get_time() - timer_start
-        rospy.loginfo("get_stopping_time found shortest distance to decelerate with max_neg_jerk={:3.3f}m/s^3 "
-                        "from v={:3.3f}m/s, a={:3.3f}m/s^2 to v={:3.3f}m/s a={:3.3f}m/s^2 in dist {:3.3f}m"
-                        " in time {:3.3f}s - Took {:3.4f}s to calc."
-                        .format(jerk, start[1], start[2], end[1], end[2],
-                                a_dist, T, duration))
+        T = best_T
+        jmt = JMT(start, end, T)
+        s_jerk = jmt.get_j_at(0.1)
+        e_jerk = jmt.get_j_at(T - 0.1)
+        lsm_jerk = old_lsm_jerk
+        
+        rospy.loginfo("get_stopping_time optimized={} t={:3.4f}s, with lsm_jerk={:3.4f} s_jerk={:3.3f}m/s^3 e_jerk={:3.2f}m/s^3 "
+                            "from v={:3.3f}m/s, a={:3.3f}m/s^2 to v={:3.3f}m/s a={:3.3f}m/s^2 in dist {:3.3f}m"
+                            " - Took {:3.4f}s to calc."
+                            .format(optimized, T, lsm_jerk, s_jerk, e_jerk, start[1], start[2], end[1], end[2],
+                                    a_dist,  duration))
+
         return T
 
     def setup_stop_jmt(self, ptr_id, a_dist):
@@ -1479,15 +1459,19 @@ class WaypointUpdater(object):
                     self.next_tl_wp = -1
         ## Test of seeing light too late
         if self.final_waypoints_start_ptr > 400 and self.final_waypoints_start_ptr < 411:
-            self.next_tl_wp = 410
-        if self.final_waypoints_start_ptr > 420 and self.final_waypoints_start_ptr < 480:
             self.test_counter = 0
-            self.next_tl_wp = 500
-        if self.final_waypoints_start_ptr >= 510 and self.final_waypoints_start_ptr < 753:
-            self.next_tl_wp = 753
-            if self.state != 'slowdown' and self.final_waypoints_start_ptr >= 748:
+        #    self.next_tl_wp = 410
+        if self.final_waypoints_start_ptr > 420 and self.final_waypoints_start_ptr < 480:
+        #if self.final_waypoints_start_ptr > 420 and self.final_waypoints_start_ptr < 753:
+            # self.test_counter = 0
+            self.next_tl_wp = 500  #753
+        if self.final_waypoints_start_ptr >= 510 and self.final_waypoints_start_ptr < 650:
+            self.next_tl_wp = 1000
+        if self.final_waypoints_start_ptr > 650 and self.final_waypoints_start_ptr < 700:
+            self.next_tl_wp = 700
+            if self.state != 'slowdown' and self.final_waypoints_start_ptr >= 698:
                 self.test_counter += 1
-                if self.test_counter > 60:
+                if self.test_counter > 120:
                     self.next_tl_wp = -1
 
 

@@ -66,7 +66,7 @@ class WaypointUpdater(object):
     def __init__(self):
         self.start_check = False
         self.testing = False
-        self.testing = True
+        # self.testing = True
         self.test_counter = 0
         self.dyn_vals_received = False
         self.waypoints = []

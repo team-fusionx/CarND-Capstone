@@ -577,7 +577,7 @@ class WaypointUpdater(object):
 
             if counter > 60 and optimized is False:
                 final_dist = a_dist
-                rospy.logwarn("counter is {} in get_min_stopping_distance initial jerk={:3.2f}, final_jerk={:3.2f} dist={:3.2f}m- bail!"
+                rospy.loginfo("counter is {} in get_min_stopping_distance initial jerk={:3.2f}, final_jerk={:3.2f} dist={:3.2f}m- bail!"
                               .format(counter, start_jerk, end_jerk, final_dist))
                 optimized = True
 
@@ -655,7 +655,7 @@ class WaypointUpdater(object):
                     time_diff = 0.0 - time_diff
 
                 if counter > 50 or T < Tmin:
-                    rospy.logwarn("counter is {} in get_stopping_time - bail on searching in this direction!"
+                    rospy.loginfo("counter is {} in get_stopping_time - bail on searching in this direction!"
                                 .format(counter))
                     optimized = True
                     try_reverse = True
@@ -705,7 +705,7 @@ class WaypointUpdater(object):
                         .format(e_acc, e_acc-end[2], old_e_acc-end[2], s_acc, s_acc-start[2],old_s_acc-start[2]))
 
                 if counter > 50 or T < Tmin:
-                    rospy.logwarn("counter is {} in get_stopping_time - bail!"
+                    rospy.loginfo("counter is {} in get_stopping_time - bail!"
                                 .format(counter))
                     optimized = True
                 rospy.logdebug("found initial jerk of {:3.2f}m/s^3 and start_acc={:3.3f}m/s^2 end_acc={:3.3f}m/s^2"
@@ -1599,9 +1599,9 @@ class WaypointUpdater(object):
         if self.final_waypoints_start_ptr in range(295,300):
             self.test_counter = 0
         ## Test of seeing light too late
-        if self.final_waypoints_start_ptr >= 400 and self.final_waypoints_start_ptr < 427:
-            self.next_tl_wp = 426
-            if self.state != 'slowdown' and self.final_waypoints_start_ptr >= 424:
+        if self.final_waypoints_start_ptr >= 400 and self.final_waypoints_start_ptr < 441:
+            self.next_tl_wp = 439
+            if self.state != 'slowdown' and self.final_waypoints_start_ptr >= 437:
                 self.test_counter += 1
                 if self.test_counter > 90:
                     self.next_tl_wp = -1

@@ -66,7 +66,7 @@ class WaypointUpdater(object):
     def __init__(self):
         self.start_check = False
         self.testing = False
-        # self.testing = True
+        self.testing = True
         self.test_counter = 0
         self.dyn_vals_received = False
         self.waypoints = []
@@ -505,6 +505,90 @@ class WaypointUpdater(object):
                               T, duration))
         return final_dist
 
+    def improve_min_stopping_distance(self, ptr_id, max_neg_jerk, a_dist):
+        # Use JMT to figure out shortest stopping distance 
+        # starting with reasonable value produced from get_min_stopping
+        # jerk at both ends of slowdown compared to jerk limit
+        max_jerk = math.fabs(max_neg_jerk)
+
+        curpt = self.waypoints[ptr_id]
+        timer_start = rospy.get_time()
+
+        start = [curpt.JMTD.S, curpt.JMTD.V, curpt.JMTD.A]
+        end = [curpt.JMTD.S + a_dist, self.min_moving_velocity*1.25, self.decel_at_min_moving_velocity]
+
+        T = self.get_stopping_time(start, end)
+
+        rospy.logdebug("Improve min_stopping_distance from v={:3.3f}, a={:3.3f} to v={:3.3f}, a={:3.3f} "
+                       " in dist {:3.3f} m in time {:3.3f} s"
+                       .format(start[1], start[2], end[1], end[2], a_dist, T))
+
+        jmt = JMT(start, end, T)
+        start_jerk = jmt.get_j_at(0.1)
+        end_jerk = jmt.get_j_at(T - 0.1)
+        acc = jmt.get_a_at(T - 0.5)
+
+        rospy.logdebug("found initial jerk={:3.2f}m/s^3, final jerk={:3.2f}m/s^3 "
+                       "final acc of {:3.2f}m/s^2 "
+                       "when using a_dist ={:3.2f}m and T={:3.2f}s"
+                       .format(start_jerk, end_jerk, acc, a_dist, T))
+        
+        dist_diff = a_dist * 0.005
+        T_diff = T * 0.005
+
+        optimized = False
+        counter = 0
+        while optimized is False:
+            counter += 1
+            old_sjerk = start_jerk
+            old_ejerk = end_jerk
+            old_acc = acc
+            a_dist = a_dist - dist_diff
+            T = T - T_diff
+            if a_dist < 0.0 or T < 0.5:
+                final_dist = a_dist + dist_diff
+                T = T + T_diff
+                duration = rospy.get_time() - timer_start
+                rospy.logdebug("Went below 0.  Shortest distance to decelerate with max_neg_jerk"
+                        "={:3.3f} from v={:3.3f}, a={:3.3f} to v={:3.3f} in "
+                        "dist {:3.3f}m in time {:3.3f}s, took {:3.4f}s to calc"
+                        .format(start_jerk, start[1], start[2], end[1],
+                                final_dist, T, duration))
+                return(final_dist)
+
+            end[0] = curpt.get_s() + a_dist
+            jmt = JMT(start, end, T)
+            start_jerk = jmt.get_j_at(0.1)
+            end_jerk = jmt.get_j_at(T - 0.1)
+            acc = jmt.get_a_at(T - 0.5)
+
+            rospy.logdebug("found initial jerk={:3.2f}m/s^3, final jerk={:3.2f}m/s^3 "
+                       "final acc of {:3.2f}m/s^2 "
+                       "when using a_dist ={:3.2f}m and T={:3.2f}s"
+                       .format(start_jerk, end_jerk, acc, a_dist, T))
+
+            if math.fabs(start_jerk) > max_jerk or math.fabs(end_jerk) > max_jerk or acc > end[2]:
+                final_dist = a_dist + dist_diff
+                start_jerk = old_sjerk
+                end_jerk = old_ejerk
+                acc = old_acc
+                T = T + T_diff
+                optimized = True
+
+            if counter > 60 and optimized is False:
+                final_dist = a_dist
+                rospy.logwarn("counter is {} in get_min_stopping_distance initial jerk={:3.2f}, final_jerk={:3.2f} dist={:3.2f}m- bail!"
+                              .format(counter, start_jerk, end_jerk, final_dist))
+                optimized = True
+
+        duration = rospy.get_time() - timer_start
+        rospy.loginfo("get_min_stopping_distance found shortest Distance of {:3.3f}m to decelerate with start_jerk={:3.3f}, end_jerk={:3.3f} ,"
+                      "from v={:3.3f}, a={:3.3f} to v={:3.3f}, a={:3.3f}"
+                      " in {:3.3f}s - Took {:3.4f}s to calc"
+                      .format(final_dist, start_jerk, end_jerk, start[1], start[2], end[1], end[2],
+                              T, duration))
+        return final_dist
+
     def get_stopping_time(self, start, end):
         # Use JMT to figure out proper time for deceleration where
         # curve does not wobbble below min_moving _velocity
@@ -857,6 +941,9 @@ class WaypointUpdater(object):
                     self.final_waypoints_start_ptr, -self.max_desired_jerk)
             self.min_stop_distance = self.get_min_stopping_distance(
                     self.final_waypoints_start_ptr, -self.max_jerk)
+            self.min_stop_distance = self.improve_min_stopping_distance(self.final_waypoints_start_ptr, -self.max_jerk, self.min_stop_distance)
+        else:
+            self.min_stop_distance = self.improve_min_stopping_distance(self.final_waypoints_start_ptr, -self.max_jerk, self.min_stop_distance)
 
     def set_creep(self, start_ptr, num_wps):
         # set V = 1.0 for waypoints in range

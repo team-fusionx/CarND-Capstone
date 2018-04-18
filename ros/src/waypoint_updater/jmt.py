@@ -141,7 +141,7 @@ class JMTD_waypoint(object):
     def set_v(self, v):
         # put a check for max_v here
         if v > self.max_v:
-            rospy.logwarn("trying to set velocity to {:2.2f}, "
+            rospy.loginfo("trying to set velocity to {:2.2f}, "
                           "but limited to {:2.2f} at ptr = {}"\
                           .format(v, self.max_v, self.ptr_id))
         self.waypoint.twist.twist.linear.x = min(v, self.max_v)

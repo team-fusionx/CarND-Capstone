@@ -23,7 +23,9 @@ class Controller(object):
         self.velocity_decrease_limit_constant = 0.05
         self.braking_to_throttle_threshold_ratio = 4. / 3.
         self.manual_braking_upper_velocity_limit = 1.4
+        self.manual_full_braking_upper_velocity_limit = 0.5
         self.braking_torque_to_stop = 100
+        self.braking_torque_to_full_stop = 400
         self.lpf_tau_throttle = 0.3
         self.lpf_tau_brake = 0.3
         self.lpf_tau_steering = 0.2
@@ -85,7 +87,10 @@ class Controller(object):
         if is_decelerating and (target_linear_velocity < self.manual_braking_upper_velocity_limit and current_linear_velocity < self.manual_braking_upper_velocity_limit):
             # vehicle is coming to a stop or is at a stop; apply fixed braking torque
             # continuously, even if the vehicle is stopped
-            brake_command = self.braking_torque_to_stop
+            if current_linear_velocity < self.manual_full_braking_upper_velocity_limit:
+                brake_command = self.braking_torque_to_full_stop
+            else:
+                brake_command = self.braking_torque_to_stop
             self.velocity_pid_controller.reset()
             control_mode = "Manual braking"
         elif velocity_error < -1 * limit_constant * current_linear_velocity:

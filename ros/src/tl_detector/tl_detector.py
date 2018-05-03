@@ -58,7 +58,7 @@ class TLDetector(object):
         self.busy = False
 
         self.last_wp = -1
-        self.state_count = 0
+        self.state_count = STATE_COUNT_THRESHOLD
         self.L_update = False
         self.light_change_to_red_or_yellow = False
 
@@ -113,6 +113,10 @@ class TLDetector(object):
                 of times till we start using it. Otherwise the previous stable state is
                 used.
                 '''
+
+                rospy.loginfo('TL: state_count={}, self.state={}, state={}'
+                              .format(self.state_count, self.state, state))
+
                 if self.state != state:
                     if (self.state == TrafficLight.YELLOW 
                         and state == TrafficLight.RED):

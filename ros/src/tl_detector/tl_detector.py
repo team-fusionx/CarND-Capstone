@@ -97,7 +97,7 @@ class TLDetector(object):
 
     def loop(self):
         while not rospy.is_shutdown():
-            if self.has_image:        
+            if self.has_image and self.pose and self.waypoint_tree:
 
                 """ Added the following to confirm classifier light state 
                     - to rule out any latency issue

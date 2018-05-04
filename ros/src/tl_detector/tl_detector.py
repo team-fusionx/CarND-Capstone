@@ -92,6 +92,7 @@ class TLDetector(object):
         sub6 = rospy.Subscriber('/image_color', Image, self.image_cb, queue_size=1)
 
         self.rate = rospy.Rate(UPDATE_RATE)
+        rospy.logwarn('TL Detector init complete.')
         self.loop()
 
     def loop(self):

@@ -36,6 +36,7 @@ class TLClassifier(object):
         self.labels = np.array(['green', 'none', 'red', 'yellow'])
         self.resize_width = 224
         self.resize_height = 224
+        rospy.logwarn('TL Classifier init complete.')
 
     def get_classification(self, image):
         """Determines the color of the traffic light in the image

@@ -23,7 +23,7 @@ tl_decoder = ['RED','YELLOW','GREEN','','UNKNOWN']
 class TLDetector(object):
     def __init__(self):
         rospy.init_node('tl_detector')
-
+        rospy.logwarn("tl_detector node init'd")
         #Variable Definitions
         self.pose = None
         self.waypoints = None
@@ -61,6 +61,8 @@ class TLDetector(object):
         self.state_count = STATE_COUNT_THRESHOLD
         self.L_update = False
         self.light_change_to_red_or_yellow = False
+
+        #rospy.init_node('tl_detector')
 
         rospy.logdebug('Red: %s', TrafficLight.RED)
         rospy.logdebug('Yellow: %s', TrafficLight.YELLOW)

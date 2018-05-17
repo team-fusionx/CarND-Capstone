@@ -20,12 +20,7 @@ class TLClassifier(object):
 
         # Load the Model
 
-        # model_path = "light_classification/models/"
-        # model_filename = "ResNet50-UdacityRealandSimMix-Best-val_acc-1.0.hdf5"
-        # model_file = model_path + model_filename
-        arch_file = "architecture.json"
-        model_weights_file = "weights.h5"
-        
+        # Clear any prev Keras sessions to improve model load time
         rospy.logwarn("clear_session")
         tf.reset_default_graph()
         K.reset_uids()
@@ -37,37 +32,45 @@ class TLClassifier(object):
         # K.clear_session()
         rospy.logwarn("loading model")
 
-        json_file = open(arch_file, 'r')
+        # Load Keras model from arch/weights files to improve model load time
+        # vs using keras.models load_model() function
+        model_path = "light_classification/models/"
+        model_name = "ResNet50-UdacityRealandSimMix-Best-val_acc-1.0"
+        model_file = model_path + model_name
+        model_arch_file = model_file + '.json'
+        model_weights_file = model_file + '.h5'
+
+        json_file = open(model_arch_file, 'r')
         loaded_model_json = json_file.read()
         json_file.close()
-        rospy.logwarn("model architecture loaded from json")
         model = model_from_json(loaded_model_json)
-        model.load_weights(model_weights_file)
+        rospy.logwarn("model architecture loaded from json")
+
+        if os.path.isfile(model_weights_file):
+            model.load_weights(model_weights_file)
+        else:
+            # Join the split model weights files before loading
+            model_file_join.join_file(model_weights_file, 3)
+            model.load_weights(model_weights_file)
         rospy.logwarn("model weights loaded from h5")
 
-        # if os.path.isfile(model_file):
-        #     # If model file is already in place
-        #     model = load_model(model_file)
-        # else:
-        #     # Join the split model files before loading
-        #     model_file_join.join_file(model_file, 4)
-        #     model = load_model(model_file)
-        # rospy.logwarn("model loaded")
-
+        # # Save the model as arch/weights files
         # # get the architecture as a json string
         # arch = model.to_json()
         # # save the architecture string to a file somehow, the below will work
-        # with open('architecture.json', 'w') as arch_file:
+        # with open(model_arch_file, 'w') as arch_file:
         #     arch_file.write(arch)
         #     # now save the weights as an HDF5 file
         # arch_file.close()
-        # model.save_weights('weights.h5')
+        # model.save_weights(model_weights_file)
 
         self.model = model
         self.model._make_predict_function()
         rospy.logwarn("model made_predict_function completed")
         self.graph = tf.get_default_graph()
         rospy.logwarn("model tf.get_default_graph completed")
+
+        # # Initial (long time) prediction on zero blank image
         # np_final = np.zeros((1, 224, 224, 3))
         # yhat = model.predict(np_final)
         # rospy.logwarn("model.predict on blank completed")

@@ -25,8 +25,16 @@ class TLClassifier(object):
         # model_file = model_path + model_filename
         arch_file = "architecture.json"
         model_weights_file = "weights.h5"
+        
         rospy.logwarn("clear_session")
-        K.clear_session()
+        tf.reset_default_graph()
+        K.reset_uids()
+        config = tf.ConfigProto()
+        config.gpu_options.allow_growth = True
+        sess = tf.Session(config=config)
+        K.set_session(sess)
+        K.set_learning_phase(0)
+        # K.clear_session()
         rospy.logwarn("loading model")
 
         json_file = open(arch_file, 'r')

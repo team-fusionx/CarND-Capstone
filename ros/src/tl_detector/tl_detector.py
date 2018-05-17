@@ -62,8 +62,6 @@ class TLDetector(object):
         self.L_update = False
         self.light_change_to_red_or_yellow = False
 
-        #rospy.init_node('tl_detector')
-
         rospy.logdebug('Red: %s', TrafficLight.RED)
         rospy.logdebug('Yellow: %s', TrafficLight.YELLOW)
         rospy.logdebug('Green: %s', TrafficLight.GREEN)

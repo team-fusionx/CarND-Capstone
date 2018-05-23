@@ -4,7 +4,7 @@ https://github.com/csmunuku/file_splitter_joiner
 '''
 
 
-def split_file(input_file, chunk_size=49000000):
+def split_file(input_file, chunk_size=35000000):
     in_file = open(input_file, 'rb')
     data = in_file.read()
     in_file.close()
@@ -22,6 +22,6 @@ def split_file(input_file, chunk_size=49000000):
 
 
 if __name__ == '__main__':
-    # Split model file into 4x 49 MB chunks
-    model_file = 'ResNet50-UdacityRealandSimMix-Best-val_acc-1.0.hdf5'
+    # Split model file into 3 x 35 MB chunks
+    model_file = 'graph/ResNet50-UdacityRealandSimMix-Best-val_acc-1.0.pb'
     split_file(model_file)

@@ -23,15 +23,17 @@ class Controller(object):
         self.velocity_decrease_limit_constant = 0.05
         self.braking_to_throttle_threshold_ratio = 4. / 3.
         self.manual_braking_upper_velocity_limit = 1.4
-        self.manual_full_braking_upper_velocity_limit = 0.5
-        self.braking_torque_to_stop = 100
-        self.braking_torque_to_full_stop = 400
+        self.manual_braking_torque = 0
+        self.manual_braking_torque_to_stop = 700
+        self.manual_braking_torque_up_rate = 300
         self.lpf_tau_throttle = 0.3
         self.lpf_tau_brake = 0.3
         self.lpf_tau_steering = 0.2
 
         self.max_braking_torque = (
             vehicle_mass + fuel_capacity * GAS_DENSITY) * abs(max_deceleration) * wheel_radius
+
+        rospy.logwarn('max_braking_torque = {:.1f} N'.format(self.max_braking_torque))
 
         self.yaw_controller = YawController(
             wheel_base, steer_ratio, min_speed, max_lat_accel, max_steer_angle)
@@ -87,10 +89,15 @@ class Controller(object):
         if is_decelerating and (target_linear_velocity < self.manual_braking_upper_velocity_limit and current_linear_velocity < self.manual_braking_upper_velocity_limit):
             # vehicle is coming to a stop or is at a stop; apply fixed braking torque
             # continuously, even if the vehicle is stopped
-            if current_linear_velocity < self.manual_full_braking_upper_velocity_limit:
-                brake_command = self.braking_torque_to_full_stop
-            else:
-                brake_command = self.braking_torque_to_stop
+            brake_command = self.manual_braking_torque
+
+            # Ramp up manual braking torque
+            if brake_command < self.manual_braking_torque_to_stop:
+                brake_command += self.manual_braking_torque_up_rate
+
+            # Clip manual brake torque to braking_torque_to_full_stop
+            brake_command = min(brake_command, self.manual_braking_torque_to_stop)
+
             self.velocity_pid_controller.reset()
             control_mode = "Manual braking"
         elif velocity_error < -1 * limit_constant * current_linear_velocity:
@@ -112,7 +119,7 @@ class Controller(object):
             self.max_braking_torque, self.brake_lpf.filt(brake_command))
 
         # do not apply throttle if any brake is applied
-        if filtered_brake < 10:
+        if filtered_brake < 50:
             # brake is released, ok to apply throttle
             filtered_brake = 0
         else:
@@ -123,6 +130,9 @@ class Controller(object):
         # apply low pass filter and maximum limit on throttle command
         filtered_throttle = min(
             self.max_throttle, self.throttle_lpf.filt(throttle_command))
+
+        # Store final brake torque command for manual_braking_torque prev value
+        self.manual_braking_torque = filtered_brake
 
         rospy.loginfo('%s: current linear velocity %.2f, target linear velocity %.2f, is_decelerating %s, throttle_command %.2f, brake_command %.2f, error %.2f, thresh %.2f',
                       control_mode, current_linear_velocity, target_linear_velocity, is_decelerating, filtered_throttle, filtered_brake, velocity_error, error_thresh)

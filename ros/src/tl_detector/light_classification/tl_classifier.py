@@ -53,8 +53,8 @@ class TLClassifier(object):
         t1 = rospy.Time.now()
         dt1 = t1 - t0
         rospy.logwarn("graph loaded in %f s",dt1.to_sec())
-        self.x = self.graph.get_tensor_by_name('prefix/image_input:0')
-        self.y = self.graph.get_tensor_by_name('prefix/predictions/Softmax:0')
+        self.x = self.graph.get_tensor_by_name('prefix/image_input_1:0')
+        self.y = self.graph.get_tensor_by_name('prefix/predictions_1/Softmax:0')
         rospy.logwarn("start TF session")
         t2 = rospy.Time.now()
         self.sess = tf.Session(graph=self.graph, config=config)

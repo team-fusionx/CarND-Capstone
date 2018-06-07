@@ -23,7 +23,7 @@ tl_decoder = ['RED','YELLOW','GREEN','','UNKNOWN']
 class TLDetector(object):
     def __init__(self):
         rospy.init_node('tl_detector')
-
+        rospy.logwarn("tl_detector node init'd")
         #Variable Definitions
         self.pose = None
         self.waypoints = None

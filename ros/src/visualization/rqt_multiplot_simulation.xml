@@ -419,7 +419,7 @@
                                     <field>data</field>
                                     <field_type>0</field_type>
                                     <scale>
-                                        <absolute_maximum>500</absolute_maximum>
+                                        <absolute_maximum>750</absolute_maximum>
                                         <absolute_minimum>0</absolute_minimum>
                                         <relative_maximum>0</relative_maximum>
                                         <relative_minimum>-1000</relative_minimum>
@@ -470,7 +470,7 @@
                                     <field>pedal_cmd</field>
                                     <field_type>0</field_type>
                                     <scale>
-                                        <absolute_maximum>500</absolute_maximum>
+                                        <absolute_maximum>750</absolute_maximum>
                                         <absolute_minimum>0</absolute_minimum>
                                         <relative_maximum>0</relative_maximum>
                                         <relative_minimum>-1000</relative_minimum>

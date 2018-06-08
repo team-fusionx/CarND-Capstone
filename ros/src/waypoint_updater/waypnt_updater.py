@@ -68,9 +68,11 @@ class WaypointUpdater(object):
         self.testing = False
         # self.testing = True
         self.test_counter = 0
+        self.test_time = 0 # store time during tests
         self.dyn_vals_received = False
         self.waypoints = []
         self.pose = None
+        self.last_pose_time = 0  # monitor time we receive fresh pose updates
         self.velocity = None
         self.stop_calc_v = 0.0  # last measurement used to calc stopping distance
         self.stop_calc_a = 0.0  # last measurement used to calc stopping distance
@@ -89,6 +91,7 @@ class WaypointUpdater(object):
         self.dyn_tl_buffer = 3.5  # tunable distance to stop before tl wp
         self.dyn_creep_zone = 7.5  # should only creep forward in this buffer
         self.dyn_buffer_offset = 2.0
+        self.extra_tl_stop_buffer = 2.0 # distance past tl_wp car can be before tl_wp reset to -1
         # self.dyn_jmt_time_factor = 1.0  # tunable factor to make nicer s curve
         self.update_rate = 10
         self.max_velocity = 0.0  # set based on max velocity in waypoints
@@ -156,10 +159,17 @@ class WaypointUpdater(object):
             self.rate.sleep()
         while not self.pose:
             self.rate.sleep()
+        loop_time = rospy.get_time()
+        loop_counter = 0
         while not rospy.is_shutdown():
-
             if self.waypoints and self.waypoints_2d and self.waypoint_tree:
                 self.send_waypoints()
+                loop_counter += 1
+                if rospy.get_time() - loop_time > 1:
+                    if loop_counter < 10:
+                        rospy.loginfo("Only ran {} loops in last second".format(loop_counter))
+                    loop_time = rospy.get_time()
+                    loop_counter = 0
             self.rate.sleep()
 
     # adjust dynamic variables
@@ -277,8 +287,10 @@ class WaypointUpdater(object):
         rospy.logdebug("Velocity reported as {:2.3f} mps".format(self.velocity))
 
     def pose_cb(self, pose_msg):
-        self.pose = pose_msg.pose
-        rospy.logdebug("waypoint_updater:pose_cb pose set to  %s", self.pose)
+        if self.pose != pose_msg.pose:
+            self.pose = pose_msg.pose
+            self.last_pose_time = rospy.get_time()
+            rospy.logdebug("waypoint_updater:pose_cb pose set to  %s", self.pose)
 
     # Load set of waypoints from /basewaypoints into self.waypoints
     # this should only happen once, so we unsubscribe at end
@@ -762,7 +774,7 @@ class WaypointUpdater(object):
     def set_stopped(self, start_ptr, num_wps):
         # set V = 0 for waypoints in range
         if self.state != 'stopped':
-            rospy.logwarn("Set car state to stopped at ptr = {}".format(start_ptr))
+            rospy.logwarn("Set car state to stopped at ptr = {}, distance to tl = {:3.3f}".format(start_ptr, self.get_distance_to_target()))
             self.state = 'stopped'
         for ptr in range(start_ptr, start_ptr + num_wps):
             mod_ptr = ptr % len(self.waypoints)
@@ -988,6 +1000,13 @@ class WaypointUpdater(object):
                 self.state = 'stopped'
                 self.stopping_distance = 0.0
                 self.min_stop_distance = 0.0
+            if self.velocity > 0.05:
+                rospy.loginfo("Car state is stopped, but car is moving at velocity = {:3.2f} at ptr = {}"
+                              .format(self.velocity, self.final_waypoints_start_ptr))
+        else:
+            pose_delay = rospy.get_time() - self.last_pose_time
+            if pose_delay > 0.1:
+                rospy.loginfo("Delay of {:3.3f} s since pose update while car is moving".format(pose_delay))
 
         # dont check distances when we are already trying to stop at the target
         if (self.state == 'slowdown' and self.stop_target == self.next_tl_wp) is False:
@@ -1015,6 +1034,7 @@ class WaypointUpdater(object):
 
             if dist_to_tl > self.dyn_tl_buffer:
                 self.set_creep(self.final_waypoints_start_ptr, self.lookahead_wps)
+                self.stop_target = self.next_tl_wp
             else:
                 self.set_stopped(self.final_waypoints_start_ptr, self.lookahead_wps)
 
@@ -1042,8 +1062,8 @@ class WaypointUpdater(object):
                             self.lookahead_wps,
                             dist_to_tl - (self.dyn_tl_buffer - self.dyn_buffer_offset))
             else:
-                rospy.logwarn("Distance to Red light {:3.2f}m is shorter than min stop distance {:3.2f} m at ptr = {}"
-                                  .format(dist_to_tl - self.dyn_tl_buffer, self.min_stop_distance, self.final_waypoints_start_ptr))
+                rospy.logwarn("Distance to Red light {:3.2f}m ({:3.2f}m) is shorter than min stop distance {:3.2f} m at ptr = {}"
+                                  .format(dist_to_tl - self.dyn_tl_buffer, self.get_distance_to_target(), self.min_stop_distance, self.final_waypoints_start_ptr))
                 if self.state == 'maintainspeed':
                     self.maintain_speed(self.final_waypoints_start_ptr, self.
                                         lookahead_wps)
@@ -1412,7 +1432,12 @@ class WaypointUpdater(object):
         if self.start_check is True or self.testing is True:
             # do this at start of each cycle so that it doesn't change
             # if traffic cb happens in middle of loop
-            if self.next_tl_wp_tmp >= self.final_waypoints_start_ptr:
+            # add in extra_tl_stop_buffer to add extra stopping distance 
+            # in case car doesn't stop as expected, to prevent reset of next_tl_wp
+            if ((self.next_tl_wp_tmp >= self.final_waypoints_start_ptr)
+                    or (self.is_decelerating is True and 
+                        (self.get_dist_to_tl() < 0 and
+                         self.get_distance_to_target() <= self.extra_tl_stop_buffer))):
                 self.next_tl_wp = self.next_tl_wp_tmp
             else:
                 self.next_tl_wp = -1
@@ -1597,13 +1622,20 @@ class WaypointUpdater(object):
 
         ## Test for Track 1
         ## test of creep
-        if self.final_waypoints_start_ptr in range(270,294):
+        if self.final_waypoints_start_ptr in range(270,292):
             self.next_tl_wp = 293
+            self.stop_target = 293
             if self.state != 'creeping' and self.final_waypoints_start_ptr >= 288:
                 self.test_counter += 1
-                if self.test_counter > 60:
+                if self.test_counter == 60:
+                    self.test_time = rospy.get_time()
+                if self.test_counter >= 60:
                     self.next_tl_wp = -1
-        if self.final_waypoints_start_ptr in range(295,300):
+        
+        if self.final_waypoints_start_ptr in range(292,300):
+            if rospy.get_time() - self.test_time > 3.5:
+                self.next_tl_wp = 293
+                self.stop_target = 293
             self.test_counter = 0
         ## Test of seeing light too late
         if self.final_waypoints_start_ptr >= 300 and self.final_waypoints_start_ptr < 310:

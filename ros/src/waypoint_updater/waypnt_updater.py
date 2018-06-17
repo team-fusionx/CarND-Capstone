@@ -898,7 +898,7 @@ class WaypointUpdater(object):
         # no need to increment offset in this case
         offset = 0
 
-        first_wp_velocity = 2.0 * self.min_moving_velocity
+        first_wp_velocity = 3.0 * self.min_moving_velocity
 
         velocity = min(max(first_wp_velocity, self.waypoints[start_ptr].get_v()),
                        0.9 * self.waypoints[start_ptr].get_maxV())
@@ -980,9 +980,9 @@ class WaypointUpdater(object):
             self.state = 'creeping'
         for ptr in range(start_ptr, start_ptr + num_wps):
             mod_ptr = ptr % len(self.waypoints)
-            self.waypoints[mod_ptr].JMTD.set_VAJt(self.min_moving_velocity,
+            self.waypoints[mod_ptr].JMTD.set_VAJt(1.5 * self.min_moving_velocity,
                                                   0.0, 0.0, 0.0)
-            self.waypoints[mod_ptr].set_v(self.min_moving_velocity)
+            self.waypoints[mod_ptr].set_v(1.5 * self.min_moving_velocity)
             self.waypoints[mod_ptr].JMT_ptr = -1
 
     def set_waypoints_velocity(self):

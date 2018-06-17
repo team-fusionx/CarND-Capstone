@@ -75,7 +75,7 @@ class Controller(object):
         timestep = self.compute_timestep()
         velocity_error = target_linear_velocity - current_linear_velocity
 
-        if (target_linear_velocity == 0 and current_linear_velocity == 0.0):
+        if (target_linear_velocity == 0 and current_linear_velocity == 0):
             # reset integrators if we're at a stop
             self.reset()
 

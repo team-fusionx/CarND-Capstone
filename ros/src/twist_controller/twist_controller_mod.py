@@ -1,5 +1,5 @@
 import time
-
+import math
 import rospy
 
 from dynamic_reconfigure.server import Server
@@ -75,8 +75,9 @@ class Controller(object):
         timestep = self.compute_timestep()
         velocity_error = target_linear_velocity - current_linear_velocity
 
-        if (target_linear_velocity == 0 and current_linear_velocity == 0):
+        if (target_linear_velocity == 0 and math.fabs(current_linear_velocity) == 0.0):
             # reset integrators if we're at a stop
+            #current_linear_velocity = 0.0
             self.reset()
 
         limit_constant = self.velocity_increase_limit_constant if velocity_error > 0 else self.velocity_decrease_limit_constant

@@ -14,7 +14,7 @@ import math
 import time
 from scipy.spatial import KDTree
 
-STATE_COUNT_THRESHOLD = 3 # Means we need 3 consecutives
+STATE_COUNT_THRESHOLD = 3 # Means we need 4 consecutives
 UPDATE_RATE = 10
 CLASSIFY_BY_GROUND_TRUTH = False
 tl_decoder = ['RED','YELLOW','GREEN','','UNKNOWN']

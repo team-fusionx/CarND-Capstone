@@ -898,17 +898,17 @@ class WaypointUpdater(object):
         # no need to increment offset in this case
         offset = 0
 
-        first_wp_velocity = 3.0 * self.min_moving_velocity
+        first_wp_velocity = 1.0 * self.min_moving_velocity
 
         velocity = min(max(first_wp_velocity, self.waypoints[start_ptr].get_v()),
-                       0.9 * self.waypoints[start_ptr].get_maxV())
+                       0.75 * self.waypoints[start_ptr].get_maxV())
 
         self.waypoints[start_ptr].set_v(velocity)
 
-        if velocity <= first_wp_velocity:
+        if velocity < first_wp_velocity:
             init_accel = 0.0
         else:
-            init_accel = self.init_accel
+            init_accel = self.initial_accel
 
         self.waypoints[start_ptr].JMTD.set_VAJt(
                     velocity, init_accel, 0.0, 0.0)

@@ -1042,7 +1042,7 @@ class WaypointUpdater(object):
              (self.state == 'speedup' and self.velocity < self.min_moving_velocity)) and\
                dist_to_tl < self.dyn_creep_zone + self.dyn_tl_buffer:
 
-            if dist_to_tl > self.dyn_tl_buffer:
+            if dist_to_tl > self.dyn_tl_buffer - (self.dyn_buffer_offset / 2):
                 self.set_creep(self.final_waypoints_start_ptr, self.lookahead_wps)
                 self.stop_target = self.next_tl_wp
             else:

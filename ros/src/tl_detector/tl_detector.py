@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 import rospy
 from std_msgs.msg import Int32
-from geometry_msgs.msg import PoseStamped, Pose
+from geometry_msgs.msg import PoseStamped, Pose, TwistStamped
 from styx_msgs.msg import TrafficLightArray, TrafficLight
 from styx_msgs.msg import Lane
 from sensor_msgs.msg import Image
@@ -62,6 +62,9 @@ class TLDetector(object):
         self.L_update = False
         self.light_change_to_red_or_yellow = False
 
+        self.current_velocity = None
+        self.stopped_vel_thresh = 0.3  # m/s
+
         rospy.logdebug('Red: %s', TrafficLight.RED)
         rospy.logdebug('Yellow: %s', TrafficLight.YELLOW)
         rospy.logdebug('Green: %s', TrafficLight.GREEN)
@@ -90,6 +93,10 @@ class TLDetector(object):
        
         sub3 = rospy.Subscriber('/vehicle/traffic_lights', TrafficLightArray, self.traffic_cb, queue_size=1)
         sub6 = rospy.Subscriber('/image_color', Image, self.image_cb, queue_size=1)
+
+        # Subscribe to /current_velocity for RED->UNKNOWN state validation
+        rospy.Subscriber('/current_velocity', TwistStamped,
+                         self.current_velocity_cb, queue_size=1)
 
         self.rate = rospy.Rate(UPDATE_RATE)
         rospy.logwarn('TL Detector init complete.')
@@ -207,6 +214,9 @@ class TLDetector(object):
         self.has_image = True
         self.camera_image = msg
 
+    def current_velocity_cb(self, msg):
+        self.current_velocity = msg.twist.linear.x
+
     def get_closest_waypoint(self, x, y):
         """Identifies the closest path waypoint to the given position
             https://en.wikipedia.org/wiki/Closest_pair_of_points_problem
@@ -263,7 +273,7 @@ class TLDetector(object):
 
                 '''
                 Update next Traffic Light state only for Valid Light state transitions		
-                # State 0 - RED -> GREEN/RED
+                # State 0 - RED -> GREEN/RED or UNKNOWN if already stopped
                 # State 1 - YELLOW -> RED/YELLOW/UNKNOWN
                 # State 2 - GREEN -> YELLOW/GREEN/RED(upcoming signal was already RED)/UNKNOWN 
                 # State 4 - Unknown -> RED/YELLOW/GREEN
@@ -285,6 +295,9 @@ class TLDetector(object):
                           and (classified_tl_state == TrafficLight.UNKNOWN)) 
                      or ((self.previous_light_state == TrafficLight.RED) 
                           and (classified_tl_state == TrafficLight.GREEN)) 
+                     or ((self.previous_light_state == TrafficLight.RED)
+                          and (classified_tl_state == TrafficLight.UNKNOWN)
+                          and (self.current_velocity < self.stopped_vel_thresh))
                    ):
                     ntl_state= classified_tl_state
                     self.previous_light_state = ntl_state

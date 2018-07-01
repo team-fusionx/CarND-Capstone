@@ -106,7 +106,7 @@ class TLClassifier(object):
                       yhat[y_class]*100, dt1.to_sec(), dt2.to_sec())
 
         self.current_light = TrafficLight.UNKNOWN
-        if (yhat[y_class] > 0.5):
+        if (yhat[y_class] > 0.7):
             if y_class == 0:
                 self.current_light = TrafficLight.GREEN
             elif y_class == 2:

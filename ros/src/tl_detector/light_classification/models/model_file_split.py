@@ -23,5 +23,5 @@ def split_file(input_file, chunk_size=35000000):
 
 if __name__ == '__main__':
     # Split model file into 3 x 35 MB chunks
-    model_file = 'graph/ResNet50-UdacityRealandSimMix-Best-val_acc-1.0.pb'
+    model_file = 'graph/ResNet50-UdacityReal_5runs-1.0.pb'
     split_file(model_file)

@@ -29,6 +29,7 @@ class TLDetector(object):
         self.waypoints = None
         self.camera_image = None
         self.lights = []
+        self.image_counter = 0
         # List of positions that correspond to the line to stop in front of for a given intersection
         config_string = rospy.get_param("/traffic_light_config")
         self.config = yaml.load(config_string)
@@ -214,6 +215,9 @@ class TLDetector(object):
         self.has_image = True
         self.camera_image = msg
 
+        # not definitive, because in a callback without lock but gives idea for tracking
+        self.image_counter = self.image_counter + 1
+
     def current_velocity_cb(self, msg):
         self.current_velocity = msg.twist.linear.x
 
@@ -244,7 +248,7 @@ class TLDetector(object):
         cv_image = self.bridge.imgmsg_to_cv2(self.camera_image, "rgb8")
 
         #Get classification
-        return self.light_classifier.get_classification(cv_image)
+        return self.light_classifier.get_classification(cv_image, self.image_counter)
 
     def process_traffic_lights(self):
         """Finds closest visible traffic light/ground truth data, if one exists, and determines its

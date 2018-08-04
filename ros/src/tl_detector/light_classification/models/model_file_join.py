@@ -22,5 +22,5 @@ def join_file(base_filename, num_chunks):
 
 if __name__ == '__main__':
     # Join model file from 3x 35 Mb chunks
-    model_file = 'ResNet50-UdacityRealandSimMix-Best-val_acc-1.0.pb'
+    model_file = 'ResNet50-UdacityReal_5runs-1.0.pb'
     join_file(model_file, 3)

@@ -47,7 +47,8 @@ class TLDetector(object):
             self.light_classifier = None
             self.has_image = True
         else:
-            self.light_classifier = TLClassifier()
+            use_image_clips = rospy.get_param('~use_image_clips', False)
+            self.light_classifier = TLClassifier(use_image_clips)
             self.has_image = False
 
         self.listener = tf.TransformListener()

@@ -26,14 +26,14 @@ def load_graph(frozen_graph_filename):
 
 
 class TLClassifier(object):
-    def __init__(self):
+    def __init__(self, use_image_clips):
         rospy.logwarn("TLClassifier __init__ begins")
         t_0 = rospy.Time.now()
         # Clear any prev Keras sessions to improve model load time
         rospy.logwarn("clear_session")
 
-        # the following is just a dummy value which should be set if on site (not in sim)
-        self.use_image_clips = True
+        # Parameter from tl_detector launch files to select site vs sim model
+        self.use_image_clips = use_image_clips
 
         tf.reset_default_graph()
 
@@ -97,9 +97,10 @@ class TLClassifier(object):
 
         t0 = rospy.Time.now()
 
-        #--------
-        # the following is just a dummy value which should be set if on site (not in sim)
+        # Switch classification method between site test (classify by multiple
+        # image clips) vs simulator (classify by single full image)
         if self.use_image_clips is True:
+            # Classify by multiple image clips
             ###chop image up
             detect = False
             # left corner x co-ords to split 800 pixels into 5 sections of 224 pixels
@@ -163,9 +164,9 @@ class TLClassifier(object):
 
             rospy.loginfo('%s (%.2f%%) | GPU time (s) : %f', labels[color_index],
                           confidence*100, dt2.to_sec())
-        else:
 
-        #--------
+        else:
+            # Classify by single full image
             image = cv2.resize(image, (self.resize_width, self.resize_height))
             np_image_data = np.asarray(image)
             np_final = np.expand_dims(np_image_data, axis=0)

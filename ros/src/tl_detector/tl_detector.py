@@ -12,6 +12,7 @@ import cv2
 import yaml
 import math
 import time
+import numpy as np
 from scipy.spatial import KDTree
 
 STATE_COUNT_THRESHOLD = 3 # Means we need 4 consecutives
@@ -30,6 +31,7 @@ class TLDetector(object):
         self.camera_image = None
         self.lights = []
         self.image_counter = 0
+        self.last_img_sum = 0
         # List of positions that correspond to the line to stop in front of for a given intersection
         config_string = rospy.get_param("/traffic_light_config")
         self.config = yaml.load(config_string)
@@ -215,9 +217,15 @@ class TLDetector(object):
         """
         self.has_image = True
         self.camera_image = msg
+        image_sum = np.sum(self.camera_image)
 
-        # not definitive, because in a callback without lock but gives idea for tracking
-        self.image_counter = self.image_counter + 1
+        if image_sum != self.last_img_sum:
+            # not definitive, because in a callback without lock but gives idea for tracking       
+            self.image_counter = self.image_counter + 1
+        else:
+            rospy.loginfo("Duplicate image received in consecutive image_cb")
+        self.last_img_sum = image_sum
+
 
     def current_velocity_cb(self, msg):
         self.current_velocity = msg.twist.linear.x

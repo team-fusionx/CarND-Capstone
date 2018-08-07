@@ -101,6 +101,11 @@ class TLClassifier(object):
         # image clips) vs simulator (classify by single full image)
         if self.use_image_clips is True:
             # Classify by multiple image clips
+            # Expecting 800x600x3 images
+            # first check that image is 800x600 - if not resize it.
+            if image.shape[:2] != (600,800):
+                rospy.loginfo("Resizing image from {} to {}".format(image.shape[:2][::-1], (800,600)))
+                image = cv2.resize(image,(800,600))
             ###chop image up
             detect = False
             # left corner x co-ords to split 800 pixels into 5 sections of 224 pixels

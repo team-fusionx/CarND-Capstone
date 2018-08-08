@@ -2,6 +2,8 @@
 <launch>
     <node pkg="tl_detector" type="tl_detector.py" name="tl_detector" output="log" cwd="node">
     	<param name="use_image_clips" value="True" />
+        <param name="use_image_array" value="True" />
+        <param name="save_images" value="False" />
     </node>
     <node pkg="tl_detector" type="light_publisher.py" name="light_publisher" output="log" cwd="node"/>
 </launch>

@@ -46,14 +46,15 @@ class TLDetector(object):
 
         self.bridge = CvBridge()
 
+        # option to save classification images to images subfolder
+        self.save_images = rospy.get_param('~save_images', False)
+
         if CLASSIFY_BY_GROUND_TRUTH:
             self.light_classifier = None
             self.has_image = True
         else:
             use_image_clips = rospy.get_param('~use_image_clips', False)
             use_image_array = rospy.get_param('~use_image_array', False)
-            # save images to images subfolder
-            self.save_images = rospy.get_param('~save_images', False)
             self.light_classifier = TLClassifier(use_image_clips, use_image_array)
             self.has_image = False
 

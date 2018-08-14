@@ -981,6 +981,10 @@ class WaypointUpdater(object):
             self.min_stop_distance = self.improve_min_stopping_distance(self.final_waypoints_start_ptr, -self.max_jerk, self.min_stop_distance)
         else:
             self.min_stop_distance = self.improve_min_stopping_distance(self.final_waypoints_start_ptr, -self.max_jerk, self.min_stop_distance)
+        
+        # add this in to llow slow car to enter slowdown - could be tricky
+        if self.min_stop_distance == 0.5:
+            self.stopping_distance = 2.5
 
     def set_creep(self, start_ptr, num_wps):
         # set V = 1.0 for waypoints in range
@@ -999,6 +1003,8 @@ class WaypointUpdater(object):
         offset = 0           # offset in front of car 
                              # - could use to account for latency
         recalc = False       # indication that JMT calcs exceed bounds
+
+        boost_creep = 1.5  # creep speed is 1.5 times min_moving velocity
 
         if self.final_waypoints_start_ptr == len(self.waypoints) - 1:
             if self.got_to_end is False and self.dbw_enabled:
@@ -1048,8 +1054,9 @@ class WaypointUpdater(object):
             rospy.loginfo("Car is {:3.2f} m from stop target waypoint".format(self.get_distance_to_target()))
 
         # just creep up to red lights if stopped a short distance from them
+        # or if currently moving slower than creep speed
         elif (self.state == 'stopped' or self.state == 'creeping' or\
-             (self.state == 'speedup' and self.velocity < self.min_moving_velocity)) and\
+             (self.state == 'speedup' and self.velocity < (self.min_moving_velocity * boost_creep))) and\
                dist_to_tl < self.dyn_creep_zone + self.dyn_tl_buffer:
 
             if dist_to_tl > self.dyn_tl_buffer - (self.dyn_buffer_offset / 2):
@@ -1082,8 +1089,10 @@ class WaypointUpdater(object):
                             self.lookahead_wps,
                             dist_to_tl - (self.dyn_tl_buffer - self.dyn_buffer_offset))
             else:
-                rospy.logwarn("Distance to Red light {:3.2f}m ({:3.2f}m) is shorter than min stop distance {:3.2f} m at ptr = {}"
+                self.stop_target = self.next_tl_wp  # set to get correct get_distance_to_target()
+                rospy.logwarn("CAN'T STOP!: Distance to Red light {:3.2f}m ({:3.2f}m) is shorter than min stop distance {:3.2f} m at ptr = {}"
                                   .format(dist_to_tl - self.dyn_tl_buffer, self.get_distance_to_target(), self.min_stop_distance, self.final_waypoints_start_ptr))
+                self.stop_target = 0  # now reset
                 if self.state == 'maintainspeed':
                     self.maintain_speed(self.final_waypoints_start_ptr, self.
                                         lookahead_wps)

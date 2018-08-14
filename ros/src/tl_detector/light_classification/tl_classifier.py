@@ -124,21 +124,23 @@ class TLClassifier(object):
 
             if self.use_image_array is True:
                 image_clip_list = []
+                clip = 0
                 # load all 5 clips into an array
+                best_guess = 0.0
+                labelname = "NONE"
                 for i in range(5):
                     image_clip = image[188:412, startx[i]:startx[i]+224]
                     image_clip_list.append(image[188:412, startx[i]:startx[i]+224])
                 
                 image_clip_array = np.array(image_clip_list)
-                rospy.loginfo("image array shape is {}".format(image_clip_array.shape))
+                # rospy.loginfo("image array shape is {}".format(image_clip_array.shape))
                 np_final = resnet50.preprocess_input(image_clip_array.astype('float64'))
                     
                 yhats = self.sess.run(self.y, feed_dict={self.x: np_final})
                 i = 0
-                for yhat in yhats:
-          
-                    y_class = yhat.argmax(axis=-1)
-
+                min_clip = 0
+                best_guess = 0.0
+                for yhat in yhats:        
                     # green
                     if yhat[0] > max_gyr[0]:
                         max_gyr[0] = yhat[0]
@@ -149,19 +151,85 @@ class TLClassifier(object):
                     if yhat[3] > max_gyr[1]:
                         max_gyr[1] = yhat[3]
                     # none
-                    min_none = min(min_none, yhat[1])
-
-                    rospy.loginfo("Image {} Clip {}, {}:{:4.2f}%, {}:{:4.2f}%, {}:{:4.2f}%, {}:{:4.2f}% "
-                                  .format(image_counter, i, labels[0], yhat[0]*100.0, labels[3], yhat[3]*100.0, labels[2], yhat[2]*100.0, labels[1], yhat[1]*100.0))
+                    if yhat[1] < min_none:
+                        min_none = yhat[1]
+                        min_clip = i
                 
+                    y_class = yhat.argmax(axis=-1)
                     if y_class != 1:
                         detect = True
-                        foundinclip.append((i, y_class, yhat[y_class]*100.0))
-                        if yhat[y_class] > 0.6:
-                            # fairly confident found a light so stop looking
-                            self.last_clip_found = i
-                            break
+                        if yhat[y_class] > best_guess:
+                            best_guess = yhat[y_class]
+                            clip = i
+                            labelname = labels[y_class]
+                            output = "Image {} Clip {}, {}:{:4.2f}%, {}:{:4.2f}%, {}:{:4.2f}%, {}:{:4.2f}% ".format(image_counter, i,
+                                   labels[0], yhat[0]*100.0, labels[3], yhat[3]*100.0, labels[2], yhat[2]*100.0, labels[1], yhat[1]*100.0)
+                            if yhat[y_class] > 0.6:
+                                self.last_clip_found = i
                     i = i + 1
+                if detect is True:
+                    rospy.loginfo("{}".format(output))
+
+                if (detect is False and min_none < 0.9) or (detect is True and best_guess < 0.6):
+                    if detect is False:  # best_guess == 0.0:
+                        #best_guess = min_none
+                        clip = min_clip
+
+                    mdetect = False
+
+                    big_image = cv2.resize(image[188:412, startx[clip]:startx[clip]+224],(336,336))
+                    mstartx = [0,56,112,0,56,112,0,56,112]
+                    mstarty = [48,48,48,78,78,78,108,108,108]
+                    image_clip_list = []
+
+                    for mi in range(9):
+                        image_clip_list.append(big_image[mstarty[mi]:mstarty[mi]+224, mstartx[i]:mstartx[i]+224])
+
+                    image_clip_array = np.array(image_clip_list)
+                    # rospy.loginfo("image array shape is {}".format(image_clip_array.shape))
+                    np_final = resnet50.preprocess_input(image_clip_array.astype('float64'))
+                        
+                    yhats = self.sess.run(self.y, feed_dict={self.x: np_final})
+                    mi = 0
+                    mmin_clip = 0
+                    for yhat in yhats:        
+                        # green
+                        if yhat[0] > max_gyr[0]:
+                            max_gyr[0] = yhat[0]
+                        # red
+                        if yhat[2] > max_gyr[2]:
+                            max_gyr[2] = yhat[2]
+                        # yellow
+                        if yhat[3] > max_gyr[1]:
+                            max_gyr[1] = yhat[3]
+                        # none
+                        if yhat[1] < min_none:
+                            min_none = yhat[1]
+                            mmin_clip = i
+                    
+                        y_class = yhat.argmax(axis=-1)
+                        if y_class != 1:
+                            mdetect = True
+                            detect = True
+                            if yhat[y_class] > best_guess:
+                                best_guess = yhat[y_class]
+                                mclip = "{}_{}".format(clip,i)
+                                mlabelname = labels[y_class]
+                                output = "Image {}_{}, {}:{:4.2f}%, {}:{:4.2f}%, {}:{:4.2f}%, {}:{:4.2f}% ".format(image_counter, mclip,
+                                    labels[0], yhat[0]*100.0, labels[3], yhat[3]*100.0, labels[2], yhat[2]*100.0, labels[1], yhat[1]*100.0)
+                        i = i + 1
+
+                    if detect is False and mdetect is False:
+                        mclip = "{}_{}".format(clip, mmin_clip)
+                        output = "Image {}_{}, {}:{:4.2f}%, {}:{:4.2f}%, {}:{:4.2f}%, {}:{:4.2f}% ".format(image_counter, mclip,
+                                        labels[0], max_gyr[0]*100.0, labels[3], max_gyr[1]*100.0, labels[2], max_gyr[2]*100.0, labels[1], min_none*100.0)
+
+                elif detect is False: # and min_none >= 0.9:
+                    output = "Image {}_{}, {}:{:4.2f}%, {}:{:4.2f}%, {}:{:4.2f}%, {}:{:4.2f}% ".format(image_counter, min_clip,
+                                        labels[0], max_gyr[0]*100.0, labels[3], max_gyr[1]*100.0, labels[2], max_gyr[2]*100.0, labels[1], min_none*100.0)
+                
+                rospy.loginfo("{}".format(output))
+
             else:          
                 for i in search_paths[self.last_clip_found]:
                     # run classification on a clip from the middle section of the image

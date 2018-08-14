@@ -275,7 +275,7 @@ class TLDetector(object):
             return TrafficLight.UNKNOWN
 
         #cv_image = self.bridge.imgmsg_to_cv2(self.camera_image, "bgr8")
-        rospy.loginfo("Begin xfer to imgmsg")
+        # rospy.loginfo("Begin xfer to imgmsg")
         cv_image = self.bridge.imgmsg_to_cv2(self.camera_image, "rgb8")
 
         #clearing the image placeholder until the next image callback to avoid latching on the same image

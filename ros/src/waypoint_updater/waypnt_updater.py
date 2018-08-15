@@ -91,6 +91,7 @@ class WaypointUpdater(object):
         self.last_stopped_tl_wp = 0 # set when stopped to prevent restopping at same light
         self.dyn_tl_buffer = 3.5  # tunable distance to stop before tl wp
         self.dyn_creep_zone = 7.5  # should only creep forward in this buffer
+        self.boost_creep = 1.5
         self.dyn_buffer_offset = 2.0
         self.extra_tl_stop_buffer = 2.0 # distance past tl_wp car can be before tl_wp reset to -1
         # self.dyn_jmt_time_factor = 1.0  # tunable factor to make nicer s curve
@@ -993,18 +994,15 @@ class WaypointUpdater(object):
             self.state = 'creeping'
         for ptr in range(start_ptr, start_ptr + num_wps):
             mod_ptr = ptr % len(self.waypoints)
-            boost_creep = 1.5
-            self.waypoints[mod_ptr].JMTD.set_VAJt(boost_creep * self.min_moving_velocity,
+            self.waypoints[mod_ptr].JMTD.set_VAJt(self.boost_creep * self.min_moving_velocity,
                                                   0.0, 0.0, 0.0)
-            self.waypoints[mod_ptr].set_v(boost_creep * self.min_moving_velocity)
+            self.waypoints[mod_ptr].set_v(self.boost_creep * self.min_moving_velocity)
             self.waypoints[mod_ptr].JMT_ptr = -1
 
     def set_waypoints_velocity(self):
         offset = 0           # offset in front of car 
                              # - could use to account for latency
         recalc = False       # indication that JMT calcs exceed bounds
-
-        boost_creep = 1.5  # creep speed is 1.5 times min_moving velocity
 
         if self.final_waypoints_start_ptr == len(self.waypoints) - 1:
             if self.got_to_end is False and self.dbw_enabled:
@@ -1056,7 +1054,7 @@ class WaypointUpdater(object):
         # just creep up to red lights if stopped a short distance from them
         # or if currently moving slower than creep speed
         elif (self.state == 'stopped' or self.state == 'creeping' or\
-             (self.state == 'speedup' and self.velocity < (self.min_moving_velocity * boost_creep))) and\
+             (self.state == 'speedup' and self.velocity < (self.min_moving_velocity * self.boost_creep))) and\
                dist_to_tl < self.dyn_creep_zone + self.dyn_tl_buffer:
 
             if dist_to_tl > self.dyn_tl_buffer - (self.dyn_buffer_offset / 2):

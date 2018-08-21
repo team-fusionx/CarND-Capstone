@@ -26,6 +26,7 @@ class VisNode(object):
         self.vis_rate = rospy.get_param('~vis_rate')
         self.final_wpt_scale = rospy.get_param('~final_wpt_scale')
         self.tl_marker_scale = rospy.get_param('~tl_marker_scale')
+        self.tl_marker_offset = rospy.get_param('~tl_marker_offset')
 
         self.subs = {}
         self.pubs = {}
@@ -214,7 +215,8 @@ class VisNode(object):
                     tl_idx = self.traffic_waypoint
                     # Make local copy to modify z position
                     tl_pose = deepcopy(self.base_waypoints[tl_idx].pose.pose)
-                    tl_pose.position.z += 20  # offset the marker above waypnts
+                    # Offset the marker above waypnts
+                    tl_pose.position.z += self.tl_marker_offset
                     det_tl_marker.pose = tl_pose
                 else:
                     det_tl_marker.action = Marker.DELETE

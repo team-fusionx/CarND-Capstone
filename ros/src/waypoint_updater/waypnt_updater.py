@@ -91,6 +91,7 @@ class WaypointUpdater(object):
         self.last_stopped_tl_wp = 0 # set when stopped to prevent restopping at same light
         self.dyn_tl_buffer = 3.5  # tunable distance to stop before tl wp
         self.dyn_creep_zone = 7.5  # should only creep forward in this buffer
+        self.boost_creep = 1.5
         self.dyn_buffer_offset = 2.0
         self.extra_tl_stop_buffer = 2.0 # distance past tl_wp car can be before tl_wp reset to -1
         # self.dyn_jmt_time_factor = 1.0  # tunable factor to make nicer s curve
@@ -981,6 +982,10 @@ class WaypointUpdater(object):
             self.min_stop_distance = self.improve_min_stopping_distance(self.final_waypoints_start_ptr, -self.max_jerk, self.min_stop_distance)
         else:
             self.min_stop_distance = self.improve_min_stopping_distance(self.final_waypoints_start_ptr, -self.max_jerk, self.min_stop_distance)
+        
+        # add this in to llow slow car to enter slowdown - could be tricky
+        if self.min_stop_distance == 0.5:
+            self.stopping_distance = 2.5
 
     def set_creep(self, start_ptr, num_wps):
         # set V = 1.0 for waypoints in range
@@ -989,10 +994,9 @@ class WaypointUpdater(object):
             self.state = 'creeping'
         for ptr in range(start_ptr, start_ptr + num_wps):
             mod_ptr = ptr % len(self.waypoints)
-            boost_creep = 1.5
-            self.waypoints[mod_ptr].JMTD.set_VAJt(boost_creep * self.min_moving_velocity,
+            self.waypoints[mod_ptr].JMTD.set_VAJt(self.boost_creep * self.min_moving_velocity,
                                                   0.0, 0.0, 0.0)
-            self.waypoints[mod_ptr].set_v(boost_creep * self.min_moving_velocity)
+            self.waypoints[mod_ptr].set_v(self.boost_creep * self.min_moving_velocity)
             self.waypoints[mod_ptr].JMT_ptr = -1
 
     def set_waypoints_velocity(self):
@@ -1048,8 +1052,9 @@ class WaypointUpdater(object):
             rospy.loginfo("Car is {:3.2f} m from stop target waypoint".format(self.get_distance_to_target()))
 
         # just creep up to red lights if stopped a short distance from them
+        # or if currently moving slower than creep speed
         elif (self.state == 'stopped' or self.state == 'creeping' or\
-             (self.state == 'speedup' and self.velocity < self.min_moving_velocity)) and\
+             (self.state == 'speedup' and self.velocity < (self.min_moving_velocity * self.boost_creep))) and\
                dist_to_tl < self.dyn_creep_zone + self.dyn_tl_buffer:
 
             if dist_to_tl > self.dyn_tl_buffer - (self.dyn_buffer_offset / 2):
@@ -1082,8 +1087,10 @@ class WaypointUpdater(object):
                             self.lookahead_wps,
                             dist_to_tl - (self.dyn_tl_buffer - self.dyn_buffer_offset))
             else:
-                rospy.logwarn("Distance to Red light {:3.2f}m ({:3.2f}m) is shorter than min stop distance {:3.2f} m at ptr = {}"
+                self.stop_target = self.next_tl_wp  # set to get correct get_distance_to_target()
+                rospy.logwarn("CAN'T STOP!: Distance to Red light {:3.2f}m ({:3.2f}m) is shorter than min stop distance {:3.2f} m at ptr = {}"
                                   .format(dist_to_tl - self.dyn_tl_buffer, self.get_distance_to_target(), self.min_stop_distance, self.final_waypoints_start_ptr))
+                self.stop_target = 0  # now reset
                 if self.state == 'maintainspeed':
                     self.maintain_speed(self.final_waypoints_start_ptr, self.
                                         lookahead_wps)

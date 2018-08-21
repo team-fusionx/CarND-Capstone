@@ -26,7 +26,7 @@ class Controller(object):
         self.manual_braking_torque_up_rate = 300
         self.lpf_tau_throttle = 0.3
         self.lpf_tau_brake = 0.3
-        self.lpf_tau_steering = 0.2
+        self.lpf_tau_steering = 0.4
         self.manual_braking = False
 
         self.max_braking_torque = (

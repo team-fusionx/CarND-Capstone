@@ -1,0 +1,5 @@
+<?xml version="1.0"?>
+<launch>
+    <!--Visualization Node -->
+    <include file="$(find visualization)/launch/vis_node_site.launch"/>
+</launch>

@@ -7,6 +7,8 @@ from geometry_msgs.msg import PoseStamped
 from nav_msgs.msg import Path
 from std_msgs.msg import ColorRGBA, Int32, Header
 from copy import deepcopy
+import os
+from tf.transformations import euler_from_quaternion
 
 '''
 This node publishes a visualization_marker_array topic for RViz to do 3D
@@ -33,6 +35,7 @@ class VisNode(object):
         self.final_waypoints = []
         self.traffic_lights = []
         self.traffic_waypoint = -1
+        self.waypoint_dump = False
 
         self.pubs['/visualization_marker_array'] = rospy.Publisher(
                     '/visualization_marker_array', MarkerArray, queue_size=1)
@@ -68,6 +71,25 @@ class VisNode(object):
     def handle_base_waypoints_msg(self, base_wp_msg):
         self.base_waypoints = []  # clear again just in case
         self.basewp_poses = []  # clear again just in case
+
+        if self.waypoint_dump:
+            # Dump base waypoints to csv file (x, y, z, yaw)
+            dump_file = 'waypoint_dump.csv'
+            rospy.logwarn(os.getcwd() + '/' + dump_file)
+            f = open(dump_file, 'w')
+            for wp_idx in range(len(base_wp_msg.waypoints)):
+                p = base_wp_msg.waypoints[wp_idx]
+                orientation_q = p.pose.pose.orientation
+                orientation_list = [orientation_q.x, orientation_q.y,
+                                    orientation_q.z, orientation_q.w]
+                (roll, pitch, yaw) = euler_from_quaternion(orientation_list)
+                wp_string = '{},{},{},{}'.format(p.pose.pose.position.x,
+                                                 p.pose.pose.position.y,
+                                                 p.pose.pose.position.z, yaw)
+                rospy.logwarn(wp_string)
+                f.write(wp_string + '\n')
+            f.close()
+
         for wp_idx in range(len(base_wp_msg.waypoints)):
             self.base_waypoints.append(base_wp_msg.waypoints[wp_idx])
             self.basewp_poses.append(base_wp_msg.waypoints[wp_idx].pose)

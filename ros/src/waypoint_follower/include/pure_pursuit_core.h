@@ -99,7 +99,7 @@ public:
     , const_lookahead_distance_(4.0)
     , initial_velocity_(5.0)
     , lookahead_distance_calc_ratio_(2.0)
-    , minimum_lookahead_distance_(4.0) // shorten for tight turn in test lot
+    , minimum_lookahead_distance_(6.0) // shorten for tight turn in test lot
     , displacement_threshold_(0.05)
     , relative_angle_threshold_(0.5)
     , waypoint_set_(false)

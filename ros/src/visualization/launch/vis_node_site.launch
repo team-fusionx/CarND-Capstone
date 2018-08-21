@@ -4,6 +4,7 @@
     	<param name="vis_enabled" type="bool" value="True" />
     	<param name="vis_rate" type="int" value="5" />
     	<param name="final_wpt_scale" type="double" value="0.5" />
-    	<param name="tl_marker_scale" type="double" value="5." />
+    	<param name="tl_marker_scale" type="double" value="1.5" />
+    	<param name="tl_marker_offset" type="double" value="0." />
     </node>
 </launch>

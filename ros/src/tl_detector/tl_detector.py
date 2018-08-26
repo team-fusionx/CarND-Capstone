@@ -13,6 +13,8 @@ import yaml
 import math
 import time
 import numpy as np
+import collections
+from copy import deepcopy
 from scipy.spatial import KDTree
 
 STATE_COUNT_THRESHOLD = 3 # Means we need 4 consecutives
@@ -48,6 +50,7 @@ class TLDetector(object):
 
         # option to save classification images to images subfolder
         self.save_images = rospy.get_param('~save_images', False)
+        self.image_q = collections.deque()
 
         if CLASSIFY_BY_GROUND_TRUTH:
             self.light_classifier = None
@@ -56,7 +59,7 @@ class TLDetector(object):
             use_image_clips = rospy.get_param('~use_image_clips', False)
             use_image_array = rospy.get_param('~use_image_array', False)
             self.light_classifier = TLClassifier(use_image_clips, use_image_array)
-            self.has_image = False
+            self.has_image = True #False
 
         self.listener = tf.TransformListener()
 
@@ -115,78 +118,80 @@ class TLDetector(object):
         loopcntr = 0
         while not rospy.is_shutdown():
             loopcntr = loopcntr + 1
-            if self.has_image and self.pose and self.waypoint_tree:
+            if len(self.image_q) > 0 and self.pose and self.waypoint_tree:
 
                 """ Added the following to confirm classifier light state 
                     - to rule out any latency issue
                 """	
-                light_wp, gt_state, tl_state = self.process_traffic_lights()
-        
-                if self.light_classifier is not None:
-                    state = tl_state
-                else:		
-                    state = gt_state
-                '''
-                Publish upcoming red lights at camera frequency.
-                Each predicted state has to occur `STATE_COUNT_THRESHOLD` number
-                of times till we start using it. Otherwise the previous stable state is
-                used.
-                '''
+                while len(self.image_q) > 0:
 
-                rospy.loginfo('TL: state_count={}, self.state={}, state={}, loop counter = {}'
-                              .format(self.state_count, self.state, state, loopcntr))
-
-                if self.state != state:
-                    if (self.state == TrafficLight.YELLOW 
-                        and state == TrafficLight.RED):
-                            rospy.logwarn('Approaching RED Light state - Required to stop')     
-                    else:
-                        self.state_count = 0
-                    self.state = state
-                    self.L_update = True 
-                elif self.state_count >= STATE_COUNT_THRESHOLD:
-                    '''
-                    Condition to update wp only when light changing to red or yellow
-                    '''
-
-                    if ((self.last_state == TrafficLight.GREEN 
-                         or self.last_state == TrafficLight.YELLOW
-                         or self.last_state == TrafficLight.UNKNOWN)
-                         and state == TrafficLight.YELLOW):
-                            self.light_change_to_red_or_yellow = True
-                    elif state == TrafficLight.RED:
-                            self.light_change_to_red_or_yellow = True
+                    light_wp, gt_state, tl_state = self.process_traffic_lights()
+            
+                    if self.light_classifier is not None:
+                        state = tl_state
                     else:		
-                            self.light_change_to_red_or_yellow = False
-                    
-                    #Update last state and waypoint        
-                    self.last_state = self.state
+                        state = gt_state
+                    '''
+                    Publish upcoming red lights at camera frequency.
+                    Each predicted state has to occur `STATE_COUNT_THRESHOLD` number
+                    of times till we start using it. Otherwise the previous stable state is
+                    used.
+                    '''
 
-                    if self.light_change_to_red_or_yellow:
-                        light_wp = light_wp
-                    else:
-                        light_wp = -1
+                    rospy.loginfo('TL: state_count={}, self.state={}, state={}, loop counter = {}'
+                                .format(self.state_count, self.state, state, loopcntr))
 
-                    self.last_wp = light_wp
-                    self.upcoming_red_light_pub.publish(Int32(light_wp))
-
-                    if self.L_update:
-                        self.L_update = False
-                        if self.light_classifier is not None:
-                             rospy.logwarn('Upcoming GT Light state: %s',tl_decoder[gt_state])     
-                             rospy.logwarn('Upcoming Classifier Light state: %s',tl_decoder[state])
+                    if self.state != state:
+                        if (self.state == TrafficLight.YELLOW 
+                            and state == TrafficLight.RED):
+                                rospy.logwarn('Approaching RED Light state - Required to stop')     
                         else:
-                             rospy.logwarn('Upcoming GT Light state: %s',tl_decoder[state])     
-                             rospy.logwarn('Upcoming Classifier Light state: %s',tl_decoder[tl_state])			
-                        rospy.logwarn('Upcoming Stop line: %f',light_wp)
+                            self.state_count = 0
+                        self.state = state
+                        self.L_update = True 
+                    elif self.state_count >= STATE_COUNT_THRESHOLD:
+                        '''
+                        Condition to update wp only when light changing to red or yellow
+                        '''
+
+                        if ((self.last_state == TrafficLight.GREEN 
+                            or self.last_state == TrafficLight.YELLOW
+                            or self.last_state == TrafficLight.UNKNOWN)
+                            and state == TrafficLight.YELLOW):
+                                self.light_change_to_red_or_yellow = True
+                        elif state == TrafficLight.RED:
+                                self.light_change_to_red_or_yellow = True
+                        else:		
+                                self.light_change_to_red_or_yellow = False
+                        
+                        #Update last state and waypoint        
+                        self.last_state = self.state
+
+                        if self.light_change_to_red_or_yellow:
+                            light_wp = light_wp
+                        else:
+                            light_wp = -1
+
+                        self.last_wp = light_wp
+                        self.upcoming_red_light_pub.publish(Int32(light_wp))
+
+                        if self.L_update:
+                            self.L_update = False
+                            if self.light_classifier is not None:
+                                rospy.logwarn('Upcoming GT Light state: %s',tl_decoder[gt_state])     
+                                rospy.logwarn('Upcoming Classifier Light state: %s',tl_decoder[state])
+                            else:
+                                rospy.logwarn('Upcoming GT Light state: %s',tl_decoder[state])     
+                                rospy.logwarn('Upcoming Classifier Light state: %s',tl_decoder[tl_state])			
+                            rospy.logwarn('Upcoming Stop line: %f',light_wp)
+                    else:
+                        self.upcoming_red_light_pub.publish(Int32(self.last_wp))
+                    self.state_count += 1
                 else:
-                    self.upcoming_red_light_pub.publish(Int32(self.last_wp))
-                self.state_count += 1
-            else:
-                if not self.has_image:
-                    rospy.loginfo("Skipping tl_detector loop because has_image is False")
-                else:
-                    rospy.loginfo("Skipping tl_detector loop because pose or waypoint_tree are False")
+                    if not self.has_image:
+                        rospy.loginfo("Skipping tl_detector loop because has_image is False")
+                    else:
+                        rospy.loginfo("Skipping tl_detector loop because pose or waypoint_tree are False")
             self.rate.sleep()
 
     def pose_cb(self, msg):
@@ -230,17 +235,22 @@ class TLDetector(object):
         image_sum = np.sum(msg)
 
         if image_sum != self.last_img_sum:
-            self.has_image = True
-            self.camera_image = msg
+            # self.has_image = True
+            # self.camera_image = msg
             # not definitive, because in a callback without lock but gives idea for tracking       
             self.image_counter = self.image_counter + 1
+            dequesize = len(self.image_q)
+            if dequesize > 3:
+                num = self.image_q.popleft()['num']
+                rospy.loginfo("dropped image {} - deque of {} is too deep".format(num, dequesize))           
+            self.image_q.append({'num': self.image_counter, 'image': deepcopy(msg)})
             self.last_img_sum = image_sum
 
             ########
             # save image stream to files
             if self.save_images is True:
                 image_name = 'images/image_'+ str(self.image_counter) + '.png'
-                cv2_img = self.bridge.imgmsg_to_cv2(self.camera_image, "bgr8")
+                cv2_img = self.bridge.imgmsg_to_cv2(msg, "bgr8")
                 cv2.imwrite(image_name, cv2_img)
             ########
 
@@ -276,14 +286,18 @@ class TLDetector(object):
 
         #cv_image = self.bridge.imgmsg_to_cv2(self.camera_image, "bgr8")
         # rospy.loginfo("Begin xfer to imgmsg")
-        cv_image = self.bridge.imgmsg_to_cv2(self.camera_image, "rgb8")
+        #cv_image = self.bridge.imgmsg_to_cv2(self.camera_image, "rgb8")
+        image_dict = self.image_q.popleft()
+        image = image_dict['image'] 
+        image_num = image_dict['num'] 
+        cv_image = self.bridge.imgmsg_to_cv2(image, "rgb8")
 
         #clearing the image placeholder until the next image callback to avoid latching on the same image
-        self.camera_image = None
-        self.has_image = False
+        # self.camera_image = None
+        # self.has_image = False
 
         #Get classification
-        return self.light_classifier.get_classification(cv_image, self.image_counter)
+        return self.light_classifier.get_classification(cv_image, image_num)
 
     def process_traffic_lights(self):
         """Finds closest visible traffic light/ground truth data, if one exists, and determines its

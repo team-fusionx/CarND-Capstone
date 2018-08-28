@@ -54,12 +54,10 @@ class TLDetector(object):
 
         if CLASSIFY_BY_GROUND_TRUTH:
             self.light_classifier = None
-            self.has_image = True
         else:
             use_image_clips = rospy.get_param('~use_image_clips', False)
             use_image_array = rospy.get_param('~use_image_array', False)
             self.light_classifier = TLClassifier(use_image_clips, use_image_array)
-            self.has_image = True #False
 
         self.listener = tf.TransformListener()
 
@@ -188,8 +186,8 @@ class TLDetector(object):
                         self.upcoming_red_light_pub.publish(Int32(self.last_wp))
                     self.state_count += 1
                 else:
-                    if not self.has_image:
-                        rospy.loginfo("Skipping tl_detector loop because has_image is False")
+                    if len(self.image_q) == 0:
+                        rospy.loginfo("Skipping tl_detector loop because no images in queue")
                     else:
                         rospy.loginfo("Skipping tl_detector loop because pose or waypoint_tree are False")
             self.rate.sleep()
@@ -235,9 +233,7 @@ class TLDetector(object):
         image_sum = np.sum(msg)
 
         if image_sum != self.last_img_sum:
-            # self.has_image = True
-            # self.camera_image = msg
-            # not definitive, because in a callback without lock but gives idea for tracking       
+            # image counter not definitive, because in a callback without lock but gives idea for tracking       
             self.image_counter = self.image_counter + 1
             dequesize = len(self.image_q)
             if dequesize > 3:
@@ -280,7 +276,7 @@ class TLDetector(object):
             int: ID of traffic light color (specified in styx_msgs/TrafficLight)
 
         """
-        if(not self.has_image):
+        if len(self.image_q) == 0:
             self.prev_light_loc = None
             return TrafficLight.UNKNOWN
 
@@ -291,10 +287,6 @@ class TLDetector(object):
         image = image_dict['image'] 
         image_num = image_dict['num'] 
         cv_image = self.bridge.imgmsg_to_cv2(image, "rgb8")
-
-        #clearing the image placeholder until the next image callback to avoid latching on the same image
-        # self.camera_image = None
-        # self.has_image = False
 
         #Get classification
         return self.light_classifier.get_classification(cv_image, image_num)

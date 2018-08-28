@@ -54,7 +54,9 @@ class TLDetector(object):
 
         if CLASSIFY_BY_GROUND_TRUTH:
             self.light_classifier = None
-            self.image_q.append({'num': 1, 'image': np.zeros((800, 600, 3))})
+            dummy_img_array = np.zeros((600, 800, 3), dtype=np.uint8)
+            dummy_img_msg = self.bridge.cv2_to_imgmsg(dummy_img_array, "bgr8")
+            self.image_q.append({'num': 1, 'image': dummy_img_msg})
         else:
             use_image_clips = rospy.get_param('~use_image_clips', False)
             use_image_array = rospy.get_param('~use_image_array', False)

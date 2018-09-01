@@ -18,6 +18,10 @@ The vehicle has a [Dataspeed](http://dataspeedinc.com/) **drive-by-wire (DBW)** 
 
 Since the team members are working from **multiple global locations (US, Canada, India)**, all development has been done online through **Slack and Github team collaboration** while using the [Udacity vehicle simulator](https://github.com/udacity/CarND-Capstone/releases) to integrate and prove out the algorithms.  After being able to drive the simulator courses, the code is then tested on the real vehicle by Udacity engineers in California.
 
+##### Video of FX-v3.2 Site Test Result:
+
+[<img src="./imgs/screen_video_carla_test_rviz.png" width="900">](https://vimeo.com/287789014)
+
 ### System Architecture
 
 [<img src="./imgs/final-project-ros-graph-v2.png" width="900">](https://github.com/team-fusionx/CarND-Capstone/blob/master/imgs/final-project-ros-graph-v2.png)

@@ -20,7 +20,7 @@ Since the team members are working from **multiple global locations (US, Canada,
 
 ##### Video of FX-v3.2 Simulator Test:
 
-[(<img src="./imgs/sim_cap.png?raw=true" width=900>)](https://www.youtube.com/watch?v=tvrs-b-J-zs)
+[<img src="./imgs/sim_cap.png?raw=true" width=900>](https://www.youtube.com/watch?v=tvrs-b-J-zs)
 
 ##### Video of FX-v3.2 Site Test Result:
 
